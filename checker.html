@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8"/>
+<title>Savol Tekshirish</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script>
+firebase.initializeApp({
+  apiKey:"AIzaSyAOgwoxezdtV89KTdapbVHqzYjjt61_Cfk",
+  authDomain:"koreantestapp.firebaseapp.com",
+  projectId:"koreantestapp",
+  storageBucket:"koreantestapp.firebasestorage.app",
+  messagingSenderId:"927061643427",
+  appId:"1:927061643427:web:89338d7127243e38ed6f16"
+});
+var db = firebase.firestore();
+
+function status(msg, type) {
+  var s = document.getElementById('status');
+  s.textContent = msg;
+  s.className = 'status ' + (type || '');
+}
+
+async function loadLast() {
+  status('Yuklanmoqda...', 'loading');
+  document.getElementById('result').innerHTML = '';
+  try {
+    var snap = await db.collection('questions')
+      .orderBy('createdAt', 'desc')
+      .limit(1)
+      .get();
+
+    if (snap.empty) { status('Hech qanday savol topilmadi!', 'error'); return; }
+
+    var doc = snap.docs[0];
+    var d = doc.data();
+    status('✅ Eng so\'nggi savol yuklandi!', 'success');
+    render(d, doc.id);
+  } catch(e) {
+    status('❌ Xato: ' + e.message, 'error');
+  }
+}
+
+async function loadBySection() {
+  var sec = document.getElementById('secFilter').value;
+  status('Yuklanmoqda...', 'loading');
+  document.getElementById('result').innerHTML = '';
+  try {
+    var snap = await db.collection('questions')
+      .where('section', '==', sec)
+      .orderBy('createdAt', 'desc')
+      .limit(1)
+      .get();
+
+    if (snap.empty) { status(sec + ' bo\'limida savol topilmadi!', 'error'); return; }
+
+    var doc = snap.docs[0];
+    status('✅ ' + sec + ' — eng so\'nggi savol!', 'success');
+    render(doc.data(), doc.id);
+  } catch(e) {
+    status('❌ Xato: ' + e.message, 'error');
+  }
+}
+
+async function loadStats() {
+  status('Statistika yuklanmoqda...', 'loading');
+  document.getElementById('result').innerHTML = '';
+  try {
+    var snap = await db.collection('questions').get();
+    var total = snap.size;
+    var bySection = {};
+    var byType = { Listening: 0, Reading: 0, noType: 0 };
+    var byDiff = {};
+    var withAudio = 0, withImage = 0, withBoth = 0, nullAudio = 0, nullImage = 0;
+
+    snap.docs.forEach(function(doc) {
+      var d = doc.data();
+      // Section
+      bySection[d.section] = (bySection[d.section] || 0) + 1;
+      // TestType
+      if (d.testType === 'Listening') byType.Listening++;
+      else if (d.testType === 'Reading') byType.Reading++;
+      else byType.noType++;
+      // Difficulty
+      byDiff[d.difficulty] = (byDiff[d.difficulty] || 0) + 1;
+      // Audio/Image
+      var hasAudio = d.questionAudioUrl && d.questionAudioUrl !== 'null';
+      var hasImage = d.questionImageUrl && d.questionImageUrl !== 'null';
+      if (hasAudio) withAudio++;
+      if (hasImage) withImage++;
+      if (hasAudio && hasImage) withBoth++;
+      if (!hasAudio) nullAudio++;
+      if (!hasImage) nullImage++;
+    });
+
+    var html = '<div class="stats">';
+    html += '<h2>📊 Umumiy statistika</h2>';
+    html += '<div class="stat-grid">';
+    html += '<div class="stat-card"><div class="stat-num">' + total + '</div><div class="stat-label">Jami savollar</div></div>';
+    html += '<div class="stat-card green"><div class="stat-num">' + withAudio + '</div><div class="stat-label">Audio bor</div></div>';
+    html += '<div class="stat-card green"><div class="stat-num">' + withImage + '</div><div class="stat-label">Rasm bor</div></div>';
+    html += '<div class="stat-card red"><div class="stat-num">' + byType.noType + '</div><div class="stat-label">testType YO\'Q ⚠️</div></div>';
+    html += '</div>';
+
+    html += '<h3>Bo\'lim bo\'yicha</h3><div class="stat-grid">';
+    Object.keys(bySection).forEach(function(k) {
+      html += '<div class="stat-card blue"><div class="stat-num">' + bySection[k] + '</div><div class="stat-label">' + k + '</div></div>';
+    });
+    html += '</div>';
+
+    html += '<h3>Listening / Reading</h3><div class="stat-grid">';
+    html += '<div class="stat-card blue"><div class="stat-num">' + byType.Listening + '</div><div class="stat-label">🎧 Listening</div></div>';
+    html += '<div class="stat-card blue"><div class="stat-num">' + byType.Reading + '</div><div class="stat-label">📖 Reading</div></div>';
+    if (byType.noType > 0) {
+      html += '<div class="stat-card red"><div class="stat-num">' + byType.noType + '</div><div class="stat-label">❓ testType yo\'q</div></div>';
+    }
+    html += '</div>';
+
+    html += '<h3>Qiyinlik bo\'yicha</h3><div class="stat-grid">';
+    ['Very Easy','Easy','Medium','Above Medium','Hard'].forEach(function(k) {
+      html += '<div class="stat-card"><div class="stat-num">' + (byDiff[k] || 0) + '</div><div class="stat-label">' + k + '</div></div>';
+    });
+    html += '</div>';
+    html += '</div>';
+
+    document.getElementById('result').innerHTML = html;
+    status('✅ Statistika tayyor!', 'success');
+  } catch(e) {
+    status('❌ Xato: ' + e.message, 'error');
+  }
+}
+
+function render(d, id) {
+  var html = '<div class="question-card">';
+
+  // Meta
+  html += '<div class="meta-row">';
+  html += '<span class="badge blue">' + (d.section || '?') + '</span>';
+  html += '<span class="badge ' + (d.testType === 'Listening' ? 'green' : 'purple') + '">' + (d.testType || '⚠️ testType YO\'Q') + '</span>';
+  html += '<span class="badge orange">' + (d.difficulty || '?') + '</span>';
+  html += '</div>';
+
+  html += '<div class="doc-id">🆔 ' + id + '</div>';
+
+  // Purpose
+  html += '<div class="section-title">📌 Savol maqsadi</div>';
+  if (d.purpose) {
+    html += '<div class="text-box">' + d.purpose + '</div>';
+  } else {
+    html += '<div class="null-badge">null</div>';
+  }
+
+  // Question text
+  html += '<div class="section-title">❓ Savol matni</div>';
+  if (d.questionText) {
+    html += '<div class="text-box">' + d.questionText + '</div>';
+  } else {
+    html += '<div class="null-badge">null</div>';
+  }
+
+  // Audio
+  html += '<div class="section-title">🎧 Savol audio</div>';
+  if (d.questionAudioUrl && d.questionAudioUrl !== 'null') {
+    html += '<div class="url-ok">✅ URL bor</div>';
+    html += '<audio controls src="' + d.questionAudioUrl + '" style="width:100%;margin-top:6px"></audio>';
+  } else {
+    html += '<div class="null-badge">❌ null — audio yuklanmagan!</div>';
+  }
+
+  // Image
+  html += '<div class="section-title">🖼 Savol rasmi</div>';
+  if (d.questionImageUrl && d.questionImageUrl !== 'null') {
+    html += '<div class="url-ok">✅ URL bor</div>';
+    html += '<img src="' + d.questionImageUrl + '" style="max-width:100%;max-height:200px;border-radius:8px;margin-top:6px"/>';
+  } else {
+    html += '<div class="null-badge">null</div>';
+  }
+
+  // Options
+  html += '<div class="section-title">📋 Variantlar</div>';
+  if (d.options && d.options.length > 0) {
+    d.options.forEach(function(opt, i) {
+      var isCorrect = i === d.correctIndex;
+      html += '<div class="option ' + (isCorrect ? 'correct' : '') + '">';
+      html += '<span class="opt-num">' + (i+1) + (isCorrect ? ' ✅' : '') + '</span>';
+      // Text
+      if (opt.text) {
+        html += '<span class="opt-text">' + opt.text + '</span>';
+      } else {
+        html += '<span class="null-badge">matn null</span>';
+      }
+      // Audio
+      if (opt.audioUrl && opt.audioUrl !== 'null') {
+        html += '<div class="url-ok">🎧 Audio bor</div>';
+        html += '<audio controls src="' + opt.audioUrl + '" style="width:100%;margin-top:4px"></audio>';
+      } else {
+        html += '<span class="null-sm">audio null</span>';
+      }
+      // Image
+      if (opt.imageUrl && opt.imageUrl !== 'null') {
+        html += '<div class="url-ok">🖼 Rasm bor</div>';
+        html += '<img src="' + opt.imageUrl + '" style="max-width:100%;max-height:120px;border-radius:6px;margin-top:4px"/>';
+      } else {
+        html += '<span class="null-sm">rasm null</span>';
+      }
+      html += '</div>';
+    });
+  } else {
+    html += '<div class="null-badge">Variantlar yo\'q!</div>';
+  }
+
+  html += '</div>';
+  document.getElementById('result').innerHTML = html;
+}
+</script>
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0d0f14; color: #e8eaf0; font-family: sans-serif; padding: 20px; }
+h1 { font-size: 20px; margin-bottom: 20px; }
+h2 { font-size: 16px; margin: 16px 0 10px; }
+h3 { font-size: 13px; color: #6b7280; margin: 14px 0 8px; }
+
+.controls { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; align-items: center; }
+.btn { padding: 10px 18px; border-radius: 8px; border: none; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+.btn-blue { background: linear-gradient(135deg, #4f8ef7, #7c5cfc); color: #fff; }
+.btn-green { background: #27ae60; color: #fff; }
+.btn-orange { background: #e67e22; color: #fff; }
+.btn:hover { opacity: 0.85; transform: translateY(-1px); }
+select { background: #1e2330; border: 1.5px solid #2a3045; border-radius: 8px; color: #e8eaf0; font-size: 13px; padding: 9px 12px; cursor: pointer; outline: none; }
+
+.status { padding: 10px 16px; border-radius: 8px; font-weight: 700; font-size: 13px; margin-bottom: 16px; }
+.status.loading { background: #1e2330; color: #f1c40f; }
+.status.success { background: rgba(39,174,96,0.15); color: #2ecc71; }
+.status.error { background: rgba(231,76,60,0.15); color: #e74c3c; }
+
+.question-card { background: #161a23; border: 1px solid #2a3045; border-radius: 12px; padding: 20px; max-width: 700px; }
+.meta-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.badge { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+.badge.blue { background: rgba(79,142,247,0.15); color: #4f8ef7; }
+.badge.green { background: rgba(39,174,96,0.15); color: #2ecc71; }
+.badge.purple { background: rgba(124,92,252,0.15); color: #7c5cfc; }
+.badge.orange { background: rgba(230,126,34,0.15); color: #e67e22; }
+.doc-id { font-size: 10px; color: #6b7280; margin-bottom: 14px; }
+.section-title { font-size: 12px; font-weight: 700; color: #6b7280; margin: 14px 0 6px; text-transform: uppercase; }
+.text-box { background: #0d0f14; border: 1px solid #2a3045; border-radius: 8px; padding: 10px; font-size: 14px; line-height: 1.6; }
+.null-badge { background: rgba(231,76,60,0.1); color: #e74c3c; font-size: 11px; padding: 4px 10px; border-radius: 6px; display: inline-block; }
+.null-sm { font-size: 11px; color: #6b7280; margin-left: 6px; }
+.url-ok { font-size: 11px; color: #2ecc71; margin-top: 4px; }
+
+.option { background: #0d0f14; border: 1.5px solid #2a3045; border-radius: 8px; padding: 10px; margin-bottom: 8px; }
+.option.correct { border-color: #2ecc71; background: rgba(39,174,96,0.05); }
+.opt-num { font-weight: 800; color: #4f8ef7; margin-right: 8px; }
+.opt-text { font-size: 14px; }
+
+.stats { max-width: 700px; }
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin-bottom: 16px; }
+.stat-card { background: #161a23; border: 1px solid #2a3045; border-radius: 10px; padding: 14px; text-align: center; }
+.stat-card.green { border-color: #27ae60; }
+.stat-card.blue { border-color: #4f8ef7; }
+.stat-card.red { border-color: #e74c3c; }
+.stat-num { font-size: 28px; font-weight: 900; color: #e8eaf0; }
+.stat-card.green .stat-num { color: #2ecc71; }
+.stat-card.blue .stat-num { color: #4f8ef7; }
+.stat-card.red .stat-num { color: #e74c3c; }
+.stat-label { font-size: 11px; color: #6b7280; margin-top: 4px; }
+</style>
+</head>
+<body>
+<h1>🔍 Savol Tekshirish</h1>
+
+<div class="controls">
+  <button class="btn btn-blue" onclick="loadLast()">📥 Eng so'nggi savol</button>
+
+  <select id="secFilter">
+    <option value="EPS TOPIK">EPS TOPIK</option>
+    <option value="TOPIK 1">TOPIK 1</option>
+    <option value="TOPIK 2">TOPIK 2</option>
+  </select>
+  <button class="btn btn-green" onclick="loadBySection()">🔎 Bo'lim bo'yicha</button>
+
+  <button class="btn btn-orange" onclick="loadStats()">📊 Statistika</button>
+</div>
+
+<div id="status" class="status" style="display:none"></div>
+<div id="result"></div>
+
+</body>
+</html>
