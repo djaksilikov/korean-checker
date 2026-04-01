@@ -275,17 +275,17 @@ function blockUser(userId, blockVal){
 
 // ── Users ──
 function searchUsers(){
-  var q=document.getElementById('userSearch').value.trim().toLowerCase();
+  var query=document.getElementById('userSearch').value.trim().toLowerCase();
   var el=document.getElementById('userList');
   var status=document.getElementById('userStatus');
-  if(!q){status.textContent='Qidiruv so'zini kiriting';return;}
+  if(!searchQ){status.textContent='Qidiruv so'zini kiriting';return;}
   el.innerHTML='<div style="color:var(--muted);font-size:13px">Yuklanmoqda...</div>';
 
   db.collection('users').get().then(function(snap){
     var results=snap.docs.filter(function(doc){
       var d=doc.data();
       var fullName=((d.name||'')+(d.tag||'')).toLowerCase();
-      return fullName.includes(q);
+      return fullName.indexOf(query)!==-1;
     });
     status.textContent=results.length+' ta topildi';
     if(results.length===0){el.innerHTML='<div style="color:var(--muted);font-size:13px;padding:16px 0">Topilmadi</div>';return;}
@@ -307,7 +307,7 @@ function searchUsers(){
 }
 
 function blockUserDirect(userId, isBlocked){
-  db.collection('users').doc(userId).set({blocked:isBlocked},{merge:true})
+  db.collection('users').doc(userId).set({blocked:isBlocked===true||isBlocked==='true'},{merge:true})
     .then(function(){searchUsers();});
 }
 var allQuestions=[];
@@ -315,7 +315,7 @@ var selectedId=null;
 var newFiles={qAudio:null,qImage:null,opt:[null,null,null,null],optImg:[null,null,null,null]};
 
 function setStatus(id,msg,type){var el=document.getElementById(id);if(!el)return;el.textContent=msg;el.className='status '+type}
-function switchTab(name,btn){document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active')});document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active')});document.getElementById('tab-'+name).classList.add('active');if(btn)btn.classList.add('active')}
+function switchTab(name,btn){document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active')});document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active')});document.getElementById('tab-'+name).classList.add('active');if(btn)btn.classList.add('active');if(name==='leaderboard')loadLeaderboard();}
 
 async function uploadFile(file,path){
   if(!file)return null;
