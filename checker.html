@@ -173,6 +173,20 @@ tr:hover td{background:var(--surface2)}
       <input id="userSearch" placeholder="Ism yoki #tag..." onkeydown="if(event.key==='Enter')searchUsers()"/>
       <button class="btn btn-blue" onclick="searchUsers()" style="flex:0;min-width:70px">🔍</button>
     </div>
+    <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+      <div class="stat-card" style="flex:1;min-width:120px">
+        <div class="stat-num" id="totalUsers" style="color:var(--accent)">—</div>
+        <div class="stat-lbl">Jami foydalanuvchi</div>
+      </div>
+      <div class="stat-card" style="flex:1;min-width:120px">
+        <div class="stat-num" id="blockedUsers" style="color:var(--red)">—</div>
+        <div class="stat-lbl">Bloklangan</div>
+      </div>
+      <div class="stat-card" style="flex:1;min-width:120px">
+        <div class="stat-num" id="activeUsers" style="color:var(--green)">—</div>
+        <div class="stat-lbl">Faol</div>
+      </div>
+    </div>
     <div id="userStatus" style="font-size:12px;color:var(--muted);margin-bottom:10px;font-family:'IBM Plex Mono',monospace"></div>
     <div id="userList"></div>
   </div>
@@ -499,6 +513,15 @@ function searchUsers(){
     el.innerHTML=html;
   }).catch(function(e){el.innerHTML='<div style="color:var(--red);padding:16px">Xato: '+e.message+'</div>'});
 }
+function loadUsersCount(){
+  db.collection('users').get().then(function(snap){
+    var total=snap.size;
+    var blocked=snap.docs.filter(function(d){return !!d.data().blocked}).length;
+    document.getElementById('totalUsers').textContent=total;
+    document.getElementById('blockedUsers').textContent=blocked;
+    document.getElementById('activeUsers').textContent=total-blocked;
+  });
+}
 function blockUD(uid,val){
   var blocked=(val==='true'||val===true);
   db.collection('users').doc(uid).set({blocked:blocked},{merge:true})
@@ -506,7 +529,9 @@ function blockUD(uid,val){
     .catch(function(e){alert('Xato: '+e.message)});
 }
 
-window.onload=function(){loadAll()};
+window.onload=function(){
+  loadAll();
+};
 </script>
 </body>
 </html>
