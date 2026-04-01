@@ -278,7 +278,7 @@ function searchUsers(){
   var query=document.getElementById('userSearch').value.trim().toLowerCase();
   var el=document.getElementById('userList');
   var status=document.getElementById('userStatus');
-  if(!searchQ){status.textContent='Qidiruv so'zini kiriting';return;}
+  if(!query){status.textContent="Qidiruv sozini kiriting";return;}
   el.innerHTML='<div style="color:var(--muted);font-size:13px">Yuklanmoqda...</div>';
 
   db.collection('users').get().then(function(snap){
