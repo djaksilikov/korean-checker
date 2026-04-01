@@ -376,31 +376,43 @@ function deleteQ(id){
 }
 
 function selectLastQ(id){
-  // lastItems ga qo'shamiz — selectQ ishlashi uchun
+  document.querySelectorAll('#lastList .q-item').forEach(function(el){el.classList.remove('selected')});
+  var el=document.getElementById('lq_'+id);
+  if(el) el.classList.add('selected');
   var item=lastItems.find(function(q){return q._id===id});
   if(!item)return;
-  // allQuestions ga vaqtincha qo'shamiz
-  if(!allQuestions.find(function(q){return q._id===id})){
-    allQuestions.push(item);
+  newFiles={qAudio:null,qImage:null,opt:[null,null,null,null],optImg:[null,null,null,null]};
+  var opts=item.options||[];
+  var gi=item.groupId?'<div class="group-info">🔗 Guruh: '+item.groupId+' | Tartib: '+item.groupOrder+'</div>':'';
+  var oh='<div class="options-grid">';
+  for(var i=0;i<4;i++){
+    var opt=opts[i]||{};var isC=item.correctIndex===i;
+    oh+='<div class="option-box'+(isC?' correct-box':'')+'" id="lob'+i+'">';
+    oh+='<div class="option-label">'+['①','②','③','④'][i]+
+      '<label class="correct-radio"><input type="radio" name="lec" value="'+i+'"'+(isC?' checked':'')+' onchange="lmarkCB('+i+')"> To&#39;g&#39;ri</label></div>';
+    oh+='<textarea id="leO'+i+'" style="min-height:44px">'+(opt.text||'')+'</textarea>';
+    oh+='<label class="upload-btn">🎧 Audio<input type="file" accept="audio/*" onchange="onLEF(&#39;oa&#39;,'+i+',this)"></label>';
+    oh+='<span class="file-status" id="loas'+i+'">'+(opt.audioUrl?'✅ Mavjud':'—')+'</span>';
+    oh+='<label class="upload-btn">🖼 Rasm<input type="file" accept="image/*" onchange="onLEF(&#39;oi&#39;,'+i+',this)"></label>';
+    oh+='<span class="file-status" id="lois'+i+'">'+(opt.imageUrl?'✅ Mavjud':'—')+'</span>';
+    oh+='</div>';
   }
-  // editPanel ni lastEditPanel ga ko'chiramiz
-  var origPanel=document.getElementById("editPanel");
-  var lastPanel=document.getElementById("lastEditPanel");
-  origPanel.style.display="none";
-  lastPanel.innerHTML="";
-  lastPanel.style.display="block";
-  // selectQ ni chaqiramiz — u editPanel ga yozadi
-  selectQ(id,null);
-  // editPanel tarkibini lastPanel ga ko'chiramiz
-  setTimeout(function(){
-    var ep=document.getElementById("editPanel");
-    if(ep&&ep.innerHTML){
-      lastPanel.innerHTML=ep.innerHTML;
-      ep.innerHTML="";
-      ep.style.display="none";
-      lastPanel.scrollIntoView({behavior:"smooth",block:"nearest"});
-    }
-  },50);
+  oh+='</div>';
+  var ep=document.getElementById('lastEditPanel');
+  ep.style.display='block';
+  ep.innerHTML='<div class="edit-panel">'+
+    '<div class="edit-title">✏️ Tahrirlash <button class="btn btn-red" onclick="deleteLastQ(&#39;'+id+'&#39;)">🗑 O&#39;chirish</button></div>'+gi+
+    '<div class="field"><label>Savol maqsadi</label><textarea id="leP">'+(item.purpose||'')+'</textarea></div>'+
+    '<div class="field"><label>Savol matni</label><textarea id="leQ">'+(item.questionText||'')+'</textarea></div>'+
+    '<div class="field"><label>Audio</label><label class="upload-btn">🎧 Yangi audio<input type="file" accept="audio/*" onchange="onLEF(&#39;qa&#39;,0,this)"></label>'+
+    '<span class="file-status" id="leqas">'+(item.questionAudioUrl?'✅ Mavjud':'—')+'</span></div>'+
+    '<div class="field"><label>Rasm</label><label class="upload-btn">🖼 Yangi rasm<input type="file" accept="image/*" onchange="onLEF(&#39;qi&#39;,0,this)"></label>'+
+    '<span class="file-status" id="leqis">'+(item.questionImageUrl?'✅ Mavjud':'—')+'</span>'+
+    (item.questionImageUrl?'<img src="'+item.questionImageUrl+'" style="max-height:80px;margin-top:6px;border-radius:6px">':'')+'</div>'+
+    oh+
+    '<div id="less" class="status" style="margin-top:12px"></div>'+
+    '<button class="btn btn-green" onclick="saveLastEdit(&#39;'+id+'&#39;)" style="margin-top:12px;width:100%">💾 Saqlash</button></div>';
+  ep.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 function lmarkCB(i){for(var j=0;j<4;j++){var b=document.getElementById('lob'+j);if(b)b.className='option-box'+(j===i?' correct-box':'')}}
 
