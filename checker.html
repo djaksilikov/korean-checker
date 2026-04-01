@@ -91,6 +91,7 @@ tr:hover td{background:var(--surface2)}
 <header>
   <div class="logo">🇰🇷</div>
   <h1>Savol Boshqaruv Paneli</h1>
+  <div style="margin-left:8px;background:rgba(79,142,247,0.1);border:1.5px solid var(--border);border-radius:8px;padding:6px 14px;display:flex;align-items:center;gap:8px;font-size:12px;font-family:'IBM Plex Mono',monospace"><span style="color:var(--muted)">👥</span><span style="color:var(--text);font-weight:700" id="headerUserCount">—</span><span style="color:var(--muted)">foydalanuvchi</span></div>
   <div class="tabs">
     <button class="tab active" onclick="switchTab('search',this)">🔎 Qidirish</button>
     <button class="tab" onclick="switchTab('last',this)">📥 So'nggi</button>
@@ -517,9 +518,12 @@ function loadUsersCount(){
   db.collection('users').get().then(function(snap){
     var total=snap.size;
     var blocked=snap.docs.filter(function(d){return !!d.data().blocked}).length;
+    var active=total-blocked;
     document.getElementById('totalUsers').textContent=total;
     document.getElementById('blockedUsers').textContent=blocked;
-    document.getElementById('activeUsers').textContent=total-blocked;
+    document.getElementById('activeUsers').textContent=active;
+    var hdr=document.getElementById('headerUserCount');
+    if(hdr) hdr.textContent=total;
   });
 }
 function blockUD(uid,val){
@@ -531,6 +535,7 @@ function blockUD(uid,val){
 
 window.onload=function(){
   loadAll();
+  loadUsersCount();
 };
 </script>
 </body>
