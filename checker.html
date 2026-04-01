@@ -135,6 +135,7 @@ tr:hover td{background:var(--surface2)}
 <div id="tab-last" class="page">
   <div id="lastStatus" class="status"></div>
   <div id="lastList" class="q-list"><div class="spinner">⏳ Tab ochilganda yuklanadi</div></div>
+  <div id="lastEditPanel" style="display:none"></div>
 </div>
 
 <!-- STATS -->
@@ -208,6 +209,7 @@ firebase.initializeApp({
 var db=firebase.firestore();
 var storage=firebase.storage();
 var allQuestions=[];
+var lastItems=[];
 var newFiles={qAudio:null,qImage:null,opt:[null,null,null,null],optImg:[null,null,null,null]};
 
 function switchTab(name,btn){
@@ -373,6 +375,95 @@ function deleteQ(id){
   });
 }
 
+function selectLastQ(id,e){
+  document.querySelectorAll('#lastList .q-item').forEach(function(el){el.classList.remove('selected')});
+  var el=document.getElementById('lq_'+id);
+  if(el) el.classList.add('selected');
+  var item=lastItems.find(function(q){return q._id===id});
+  if(!item)return;
+  newFiles={qAudio:null,qImage:null,opt:[null,null,null,null],optImg:[null,null,null,null]};
+  var opts=item.options||[];
+  var gi=item.groupId?'<div class="group-info">🔗 Guruh: '+item.groupId+' | Tartib: '+item.groupOrder+'</div>':'';
+  var oh='<div class="options-grid">';
+  for(var i=0;i<4;i++){
+    var opt=opts[i]||{};var isC=item.correctIndex===i;
+    oh+='<div class="option-box'+(isC?' correct-box':'')+'" id="lob'+i+'">';
+    oh+='<div class="option-label">'+['①','②','③','④'][i]+
+      '<label class="correct-radio"><input type="radio" name="lec" value="'+i+'"'+(isC?' checked':'')+' onchange="lmarkCB('+i+')"> To'g'ri</label></div>';
+    oh+='<textarea id="leO'+i+'" style="min-height:44px">'+(opt.text||'')+'</textarea>';
+    oh+='<label class="upload-btn">🎧 Audio<input type="file" accept="audio/*" onchange="onLEF('oa','+i+',this)"></label>';
+    oh+='<span class="file-status" id="loas'+i+'">'+(opt.audioUrl?'✅ Mavjud':'—')+'</span>';
+    oh+='<label class="upload-btn">🖼 Rasm<input type="file" accept="image/*" onchange="onLEF('oi','+i+',this)"></label>';
+    oh+='<span class="file-status" id="lois'+i+'">'+(opt.imageUrl?'✅ Mavjud':'—')+'</span>';
+    oh+='</div>';
+  }
+  oh+='</div>';
+  var ep=document.getElementById('lastEditPanel');
+  ep.style.display='block';
+  ep.innerHTML='<div class="edit-panel">'+
+    '<div class="edit-title">✏️ Tahrirlash <button class="btn btn-red" onclick="deleteLastQ(''+id+'')">🗑 O'chirish</button></div>'+gi+
+    '<div class="field"><label>Savol maqsadi</label><textarea id="leP">'+(item.purpose||'')+'</textarea></div>'+
+    '<div class="field"><label>Savol matni</label><textarea id="leQ">'+(item.questionText||'')+'</textarea></div>'+
+    '<div class="field"><label>Audio</label><label class="upload-btn">🎧 Yangi audio<input type="file" accept="audio/*" onchange="onLEF('qa',0,this)"></label>'+
+    '<span class="file-status" id="leqas">'+(item.questionAudioUrl?'✅ Mavjud':'—')+'</span></div>'+
+    '<div class="field"><label>Rasm</label><label class="upload-btn">🖼 Yangi rasm<input type="file" accept="image/*" onchange="onLEF('qi',0,this)"></label>'+
+    '<span class="file-status" id="leqis">'+(item.questionImageUrl?'✅ Mavjud':'—')+'</span>'+
+    (item.questionImageUrl?'<img src="'+item.questionImageUrl+'" style="max-height:80px;margin-top:6px;border-radius:6px">':'')+'</div>'+
+    oh+
+    '<div id="less" class="status" style="margin-top:12px"></div>'+
+    '<button class="btn btn-green" onclick="saveLastEdit(''+id+'')" style="margin-top:12px;width:100%">💾 Saqlash</button></div>';
+  ep.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function lmarkCB(i){for(var j=0;j<4;j++){var b=document.getElementById('lob'+j);if(b)b.className='option-box'+(j===i?' correct-box':'')}}
+
+function onLEF(type,idx,input){
+  var file=input.files[0];if(!file)return;
+  if(type==='qa'){newFiles.qAudio=file;showFS('leqas','🎧 '+file.name,true)}
+  else if(type==='qi'){newFiles.qImage=file;showFS('leqis','🖼 '+file.name,true)}
+  else if(type==='oa'){newFiles.opt[idx]=file;showFS('loas'+idx,'🎧 '+file.name,true)}
+  else if(type==='oi'){newFiles.optImg[idx]=file;showFS('lois'+idx,'🖼 '+file.name,true)}
+}
+
+async function saveLastEdit(id){
+  setStatus('less','⏳ Saqlanmoqda...','loading');
+  var item=lastItems.find(function(q){return q._id===id});if(!item)return;
+  var update={};
+  update.purpose=document.getElementById('leP').value.trim()||null;
+  update.questionText=document.getElementById('leQ').value.trim()||null;
+  var ce=document.querySelector('input[name="lec"]:checked');
+  if(ce) update.correctIndex=parseInt(ce.value);
+  if(newFiles.qAudio) update.questionAudioUrl=await uploadFile(newFiles.qAudio,'audio/'+Date.now());
+  if(newFiles.qImage) update.questionImageUrl=await uploadFile(newFiles.qImage,'images/'+Date.now());
+  if(item.groupId&&(newFiles.qAudio||newFiles.qImage)){
+    lastItems.filter(function(q){return q.groupId===item.groupId&&q._id!==id}).forEach(function(sib){
+      var su={};
+      if(newFiles.qAudio&&update.questionAudioUrl) su.questionAudioUrl=update.questionAudioUrl;
+      if(newFiles.qImage&&update.questionImageUrl) su.questionImageUrl=update.questionImageUrl;
+      if(Object.keys(su).length) db.collection('questions').doc(sib._id).update(su);
+    });
+  }
+  var opts=item.options?JSON.parse(JSON.stringify(item.options)):Array(4).fill({});
+  for(var i=0;i<4;i++){
+    if(!opts[i])opts[i]={};
+    opts[i].text=document.getElementById('leO'+i).value.trim();
+    if(newFiles.opt[i]) opts[i].audioUrl=await uploadFile(newFiles.opt[i],'audio/'+Date.now());
+    if(newFiles.optImg[i]) opts[i].imageUrl=await uploadFile(newFiles.optImg[i],'images/'+Date.now());
+  }
+  update.options=opts;
+  db.collection('questions').doc(id).update(update)
+    .then(function(){setStatus('less','✅ Saqlandi!','success');loadLast()})
+    .catch(function(e){setStatus('less','❌ Xato: '+e.message,'error')});
+}
+
+function deleteLastQ(id){
+  if(!confirm('Rostdan o'chirasizmi?'))return;
+  db.collection('questions').doc(id).delete().then(function(){
+    document.getElementById('lastEditPanel').style.display='none';
+    loadLast();
+  });
+}
+
 // ── LAST ──
 function loadLast(){
   var el=document.getElementById('lastList');
@@ -391,12 +482,20 @@ function loadLast(){
         }
       } else sorted.push(item);
     });
+    lastItems=sorted;
     el.innerHTML=sorted.map(function(item){
       var ig=!!item.groupId;var ord=item.groupOrder||1;
       var cls='q-item'+(ig?(ord===1?' group-first':' group-other'):'');
-      return '<div class="'+cls+'"><div class="q-meta">'+secBadge(item.section)+typeBadge(item.testType||'Reading')+diffBadge(item.difficulty||'Easy')+
+      return '<div class="'+cls+'" id="lq_'+item._id+'" onclick="selectLastQ(''+item._id+'',event)">'+
+        '<div class="q-meta" style="justify-content:space-between;align-items:center">'+
+        '<div style="display:flex;gap:6px;flex-wrap:wrap">'+
+        secBadge(item.section)+typeBadge(item.testType||'Reading')+diffBadge(item.difficulty||'Easy')+
         (ig?'<span class="badge bb">🔗 '+ord+'/2</span>':'')+
-        '</div><div class="q-purpose">'+(item.purpose||item.questionText||'—')+'</div></div>';
+        '</div>'+
+        '<button onclick="event.stopPropagation();selectLastQ(''+item._id+'',event)" style="padding:3px 10px;border-radius:6px;border:1.5px solid var(--accent);background:transparent;color:var(--accent);font-size:11px;cursor:pointer;font-family:Sora,sans-serif;font-weight:700">✏️ Tahrir</button>'+
+        '</div>'+
+        '<div class="q-purpose">'+(item.purpose||item.questionText||'—')+'</div>'+
+        '</div>';
     }).join('');
   }).catch(function(e){el.innerHTML='<div class="spinner">❌ '+e.message+'</div>'});
 }
