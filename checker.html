@@ -85,7 +85,7 @@ textarea{resize:vertical;min-height:60px}
 </style>
 </head>
 <body>
- 
+
 <header>
   <div class="logo">🇰🇷</div>
   <h1>Savol Boshqaruv Paneli</h1>
@@ -93,9 +93,11 @@ textarea{resize:vertical;min-height:60px}
     <button class="tab active" onclick="switchTab('search',this)">🔎 Qidirish</button>
     <button class="tab" onclick="switchTab('last',this)">📥 Eng so'nggi</button>
     <button class="tab" onclick="switchTab('stats',this)">📊 Statistika</button>
+    <button class="tab" onclick="switchTab('leaderboard',this);loadLeaderboard()">🏆 Leaderboard</button>
+    <button class="tab" onclick="switchTab('users',this)">👥 Foydalanuvchilar</button>
   </div>
 </header>
- 
+
 <div id="tab-search" class="page active">
   <div id="searchStatus" class="status"></div>
   <div class="search-bar">
@@ -130,7 +132,7 @@ textarea{resize:vertical;min-height:60px}
   <div id="qList" class="q-list"><div class="spinner">⏳ "Yuklash" tugmasini bosing...</div></div>
   <div id="editPanel" style="display:none"></div>
 </div>
- 
+
 <div id="tab-last" class="page">
   <div id="lastStatus" class="status"></div>
   <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center">
@@ -144,7 +146,7 @@ textarea{resize:vertical;min-height:60px}
   </div>
   <div id="lastResult"></div>
 </div>
- 
+
 <div id="tab-stats" class="page">
   <div id="statsStatus" class="status"></div>
   <div style="margin-bottom:16px">
@@ -152,7 +154,42 @@ textarea{resize:vertical;min-height:60px}
   </div>
   <div id="statsResult"></div>
 </div>
- 
+
+<!-- LEADERBOARD TAB -->
+<div id="tab-leaderboard" class="page">
+  <div class="card">
+    <div class="card-header">🏆 Leaderboard</div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+      <select id="lbSection" style="padding:8px 12px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:13px">
+        <option value="EPS_TOPIK">📋 EPS TOPIK</option>
+        <option value="TOPIK_1">📗 TOPIK 1</option>
+        <option value="TOPIK_2">📘 TOPIK 2</option>
+      </select>
+      <select id="lbPeriod" style="padding:8px 12px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:13px">
+        <option value="weekly">Haftalik</option>
+        <option value="monthly">Oylik</option>
+        <option value="lastmonth">O'tgan oy</option>
+      </select>
+      <button onclick="loadLeaderboard()" style="padding:8px 16px;border-radius:8px;background:var(--accent);color:#fff;border:none;font-size:13px;cursor:pointer">Yuklash</button>
+    </div>
+    <div id="lbStatus" style="font-size:13px;color:var(--muted);margin-bottom:8px"></div>
+    <div id="lbList"></div>
+  </div>
+</div>
+
+<!-- USERS TAB -->
+<div id="tab-users" class="page">
+  <div class="card">
+    <div class="card-header">👥 Foydalanuvchilar</div>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <input id="userSearch" placeholder="Ism yoki #tag qidirish..." style="flex:1;padding:10px 14px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:13px">
+      <button onclick="searchUsers()" style="padding:10px 16px;border-radius:8px;background:var(--accent);color:#fff;border:none;font-size:13px;cursor:pointer">🔍</button>
+    </div>
+    <div id="userStatus" style="font-size:13px;color:var(--muted);margin-bottom:8px"></div>
+    <div id="userList"></div>
+  </div>
+</div>
+
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
@@ -167,20 +204,126 @@ firebase.initializeApp({
 });
 var db=firebase.firestore();
 var storage=firebase.storage();
+
+// ── Leaderboard ──
+function getWeekKey(){
+  var now=new Date();
+  var startOfYear=new Date(now.getFullYear(),0,1);
+  var week=Math.ceil(((now-startOfYear)/86400000+startOfYear.getDay()+1)/7);
+  return now.getFullYear()+'-W'+(week<10?'0'+week:week);
+}
+function getMonthKey(offset){
+  var d=new Date();
+  d.setMonth(d.getMonth()+(offset||0));
+  return d.getFullYear()+'-'+(d.getMonth()<9?'0':'')+(d.getMonth()+1);
+}
+
+function loadLeaderboard(){
+  var section=document.getElementById('lbSection').value;
+  var period=document.getElementById('lbPeriod').value;
+  var el=document.getElementById('lbList');
+  var status=document.getElementById('lbStatus');
+  el.innerHTML='<div style="color:var(--muted);font-size:13px">Yuklanmoqda...</div>';
+
+  var colName;
+  if(period==='weekly') colName='weekly_'+getWeekKey();
+  else if(period==='monthly') colName='monthly_'+getMonthKey(0);
+  else colName='monthly_'+getMonthKey(-1);
+
+  db.collection('leaderboard').doc(section).collection(colName)
+    .orderBy('score','desc').limit(100).get()
+    .then(function(snap){
+      if(snap.empty){el.innerHTML='<div style="color:var(--muted);font-size:13px;padding:16px 0">Hozircha natija yo'q</div>';status.textContent='0 ta natija';return;}
+      status.textContent=snap.size+' ta natija';
+      var html='<table style="width:100%;border-collapse:collapse;font-size:13px">';
+      html+='<tr style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:0.5px"><th style="padding:8px;text-align:left">#</th><th style="text-align:left">Foydalanuvchi</th><th style="text-align:center">Mamlakat</th><th style="text-align:right">Ball</th><th style="text-align:right">Test</th><th></th></tr>';
+      snap.docs.forEach(function(doc,i){
+        var d=doc.data();
+        var medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1);
+        var blocked=d.blocked?'style="opacity:0.4"':'';
+        html+='<tr '+blocked+' style="border-top:1px solid var(--border)">';
+        html+='<td style="padding:10px 8px;font-weight:700">'+medal+'</td>';
+        html+='<td style="padding:10px 8px"><span style="font-size:16px">'+d.avatar+'</span> <b>'+d.name+'</b><span style="color:var(--muted)">'+d.tag+'</span>'+(d.blocked?'<span style="color:#ef4444;font-size:10px;margin-left:6px">🚫 BLOCKED</span>':'')+'</td>';
+        html+='<td style="padding:10px 8px;text-align:center">'+(d.country||'—')+'</td>';
+        html+='<td style="padding:10px 8px;text-align:right;font-weight:700;color:#5B6EF0">'+d.score.toFixed(1)+'</td>';
+        html+='<td style="padding:10px 8px;text-align:right;color:var(--muted)">'+d.testCount+'</td>';
+        html+='<td style="padding:10px 8px;text-align:right"><button onclick="blockUser(''+doc.id+'',''+(d.blocked?'false':'true')+'')" style="padding:4px 10px;border-radius:6px;border:1.5px solid '+(d.blocked?'#22c55e':'#ef4444')+';background:transparent;color:'+(d.blocked?'#22c55e':'#ef4444')+';font-size:11px;cursor:pointer">'+(d.blocked?'✅ Blokdan chiqar':'🚫 Bloklash')+'</button></td>';
+        html+='</tr>';
+      });
+      html+='</table>';
+      el.innerHTML=html;
+    }).catch(function(e){el.innerHTML='<div style="color:#ef4444">Xato: '+e.message+'</div>';});
+}
+
+function blockUser(userId, blockVal){
+  var section=document.getElementById('lbSection').value;
+  var period=document.getElementById('lbPeriod').value;
+  var colName;
+  if(period==='weekly') colName='weekly_'+getWeekKey();
+  else if(period==='monthly') colName='monthly_'+getMonthKey(0);
+  else colName='monthly_'+getMonthKey(-1);
+
+  var isBlocked = blockVal==='true';
+  db.collection('leaderboard').doc(section).collection(colName).doc(userId)
+    .update({blocked: isBlocked})
+    .then(function(){
+      // users collectionida ham belgilayiz
+      db.collection('users').doc(userId).set({blocked: isBlocked},{merge:true});
+      loadLeaderboard();
+    });
+}
+
+// ── Users ──
+function searchUsers(){
+  var q=document.getElementById('userSearch').value.trim().toLowerCase();
+  var el=document.getElementById('userList');
+  var status=document.getElementById('userStatus');
+  if(!q){status.textContent='Qidiruv so'zini kiriting';return;}
+  el.innerHTML='<div style="color:var(--muted);font-size:13px">Yuklanmoqda...</div>';
+
+  db.collection('users').get().then(function(snap){
+    var results=snap.docs.filter(function(doc){
+      var d=doc.data();
+      var fullName=((d.name||'')+(d.tag||'')).toLowerCase();
+      return fullName.includes(q);
+    });
+    status.textContent=results.length+' ta topildi';
+    if(results.length===0){el.innerHTML='<div style="color:var(--muted);font-size:13px;padding:16px 0">Topilmadi</div>';return;}
+    var html='<table style="width:100%;border-collapse:collapse;font-size:13px">';
+    html+='<tr style="color:var(--muted);font-size:11px;text-transform:uppercase"><th style="padding:8px;text-align:left">Foydalanuvchi</th><th style="text-align:center">Mamlakat</th><th style="text-align:center">Holat</th><th></th></tr>';
+    results.forEach(function(doc){
+      var d=doc.data();
+      var blocked=d.blocked;
+      html+='<tr style="border-top:1px solid var(--border)'+(blocked?';opacity:0.5':'')+'">'; 
+      html+='<td style="padding:10px 8px"><span style="font-size:18px">'+d.avatar+'</span> <b>'+(d.name||'?')+'</b><span style="color:var(--muted)">'+(d.tag||'')+'</span></td>';
+      html+='<td style="padding:10px 8px;text-align:center">'+(d.country||'—')+'</td>';
+      html+='<td style="padding:10px 8px;text-align:center">'+(blocked?'<span style="color:#ef4444">🚫 Bloklangan</span>':'<span style="color:#22c55e">✅ Faol</span>')+'</td>';
+      html+='<td style="padding:10px 8px;text-align:right"><button onclick="blockUserDirect(''+doc.id+'','+(blocked?'false':'true')+')" style="padding:4px 10px;border-radius:6px;border:1.5px solid '+(blocked?'#22c55e':'#ef4444')+';background:transparent;color:'+(blocked?'#22c55e':'#ef4444')+';font-size:11px;cursor:pointer">'+(blocked?'✅ Blokdan chiqar':'🚫 Bloklash')+'</button></td>';
+      html+='</tr>';
+    });
+    html+='</table>';
+    el.innerHTML=html;
+  }).catch(function(e){el.innerHTML='<div style="color:#ef4444">Xato: '+e.message+'</div>';});
+}
+
+function blockUserDirect(userId, isBlocked){
+  db.collection('users').doc(userId).set({blocked:isBlocked},{merge:true})
+    .then(function(){searchUsers();});
+}
 var allQuestions=[];
 var selectedId=null;
 var newFiles={qAudio:null,qImage:null,opt:[null,null,null,null],optImg:[null,null,null,null]};
- 
+
 function setStatus(id,msg,type){var el=document.getElementById(id);if(!el)return;el.textContent=msg;el.className='status '+type}
 function switchTab(name,btn){document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active')});document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active')});document.getElementById('tab-'+name).classList.add('active');if(btn)btn.classList.add('active')}
- 
+
 async function uploadFile(file,path){
   if(!file)return null;
   var ref=storage.ref(path);
   var snap=await ref.put(file);
   return await snap.ref.getDownloadURL();
 }
- 
+
 function onFileChange(type,idx,input){
   var file=input.files[0];if(!file)return;
   if(type==='qAudio'){newFiles.qAudio=file;showFS('qAudioStatus','🎧 '+file.name,true)}
@@ -190,7 +333,7 @@ function onFileChange(type,idx,input){
 }
 function showFS(id,msg,ok){var el=document.getElementById(id);if(el){el.textContent=msg;el.className='file-status '+(ok?'has-file':'no-file')}}
 function previewImg(file,id){var r=new FileReader();r.onload=function(e){var img=document.getElementById(id);if(img){img.src=e.target.result;img.style.display='block'}};r.readAsDataURL(file)}
- 
+
 // ══ SEARCH ══
 function loadAll(){
   setStatus('searchStatus','⏳ Yuklanmoqda...','loading');
@@ -202,14 +345,14 @@ function loadAll(){
     onSearch();
   }).catch(function(e){setStatus('searchStatus','❌ Xato: '+e.message,'error')});
 }
- 
+
 function onSearch(){
   var q=document.getElementById('searchInput').value.toLowerCase().trim();
   var sec=document.getElementById('filterSection').value;
   var type=document.getElementById('filterType').value;
   var diff=document.getElementById('filterDiff').value;
   var grp=document.getElementById('filterGroup').value;
- 
+
   var filtered=allQuestions.filter(function(item){
     var matchQ=!q||(item.purpose||'').toLowerCase().includes(q)||(item.questionText||'').toLowerCase().includes(q);
     var matchS=!sec||item.section===sec;
@@ -220,12 +363,12 @@ function onSearch(){
     else if(grp==='single')matchG=!item.groupId;
     return matchQ&&matchS&&matchT&&matchD&&matchG;
   });
- 
+
   // Guruh savollarni ketma-ket tartibda ko'rsatish
   var sortedFiltered=sortWithGroups(filtered);
   renderList(sortedFiltered);
 }
- 
+
 // Guruh savollarni ketma-ket joylashtirish
 function sortWithGroups(list){
   var result=[];
@@ -251,33 +394,33 @@ function sortWithGroups(list){
   });
   return result;
 }
- 
+
 function renderList(list){
   document.getElementById('resultCount').textContent=list.length+' ta savol topildi';
   var el=document.getElementById('qList');
   if(!list.length){el.innerHTML='<div class="spinner">😕 Savol topilmadi</div>';return}
   el.innerHTML='';
- 
+
   list.forEach(function(item){
     var div=document.createElement('div');
     var isGroup=!!item.groupId;
     var groupOrder=item.groupOrder||1;
     var isGroupFirst=isGroup&&groupOrder===1;
     var isGroupOther=isGroup&&groupOrder>1;
- 
+
     div.className='q-item'+(item._id===selectedId?' selected':'')+(isGroupFirst?' group-first':isGroupOther?' group-other':'');
     div.onclick=function(){selectQuestion(item._id)};
- 
+
     var tc=item.testType==='Listening'?'bg':item.testType==='Reading'?'bp':'br';
     var dc={'Very Easy':'bg','Easy':'bg','Medium':'bo','Above Medium':'bo','Hard':'br'}[item.difficulty]||'bx';
- 
+
     var groupBadge='';
     if(isGroup){
       // Guruhning umumiy savollar sonini hisoblash
       var totalInGroup=allQuestions.filter(function(q){return q.groupId===item.groupId}).length;
       groupBadge='<span class="badge bl">🔗 '+groupOrder+'/'+totalInGroup+'</span>';
     }
- 
+
     div.innerHTML=
       '<div class="q-meta">'+
         '<span class="badge bb">'+(item.section||'?')+'</span>'+
@@ -292,7 +435,7 @@ function renderList(list){
     el.appendChild(div);
   });
 }
- 
+
 function selectQuestion(id){
   selectedId=id;
   newFiles={qAudio:null,qImage:null,opt:[null,null,null,null],optImg:[null,null,null,null]};
@@ -301,31 +444,31 @@ function selectQuestion(id){
   if(!item)return;
   var panel=document.getElementById('editPanel');
   panel.style.display='block';
- 
+
   var diffOpts=['Very Easy','Easy','Medium','Above Medium','Hard'].map(function(d){
     return'<option value="'+d+'"'+(item.difficulty===d?' selected':'')+'>'+d+'</option>';
   }).join('');
- 
+
   // Guruh info
   var groupInfoHtml='';
   if(item.groupId){
     var totalInGroup=allQuestions.filter(function(q){return q.groupId===item.groupId}).length;
     groupInfoHtml='<div class="group-info">🔗 Guruh savol: '+item.groupOrder+'/'+totalInGroup+' &nbsp;|&nbsp; Group ID: '+item.groupId+'</div>';
   }
- 
+
   var qAudioHtml=
     '<div class="field"><label>🎧 Savol Audio</label>'+
     '<div class="file-status '+(item.questionAudioUrl?'has-file':'no-file')+'" id="qAudioStatus">'+(item.questionAudioUrl?'✅ Audio mavjud':'❌ Audio yo\'q')+'</div>'+
     (item.questionAudioUrl?'<audio controls src="'+item.questionAudioUrl+'" style="width:100%;margin:6px 0"></audio>':'')+
     '<label class="upload-btn">📤 '+(item.questionAudioUrl?'Yangi audio':'Audio qo\'shish')+'<input type="file" accept="audio/*" onchange="onFileChange(\'qAudio\',0,this)"></label></div>';
- 
+
   var qImageHtml=
     '<div class="field"><label>🖼 Savol Rasmi</label>'+
     '<div class="file-status '+(item.questionImageUrl?'has-file':'no-file')+'" id="qImageStatus">'+(item.questionImageUrl?'✅ Rasm mavjud':'❌ Rasm yo\'q')+'</div>'+
     (item.questionImageUrl?'<img src="'+item.questionImageUrl+'" style="max-width:100%;max-height:120px;border-radius:8px;margin:6px 0"/>':'')+
     '<label class="upload-btn">📤 '+(item.questionImageUrl?'Yangi rasm':'Rasm qo\'shish')+'<input type="file" accept="image/*" onchange="onFileChange(\'qImage\',0,this)"></label>'+
     '<img id="qImagePreview" style="max-width:100%;max-height:120px;border-radius:8px;margin-top:6px;display:none"/></div>';
- 
+
   var optsHtml='';
   for(var i=0;i<4;i++){
     var opt=(item.options&&item.options[i])||{};
@@ -347,7 +490,7 @@ function selectQuestion(id){
           '<img id="optImg'+i+'Preview" style="max-width:100%;max-height:80px;border-radius:6px;margin-top:4px;display:none"/></div>'+
       '</div>';
   }
- 
+
   panel.innerHTML=
     '<div class="edit-panel">'+
       '<div class="edit-title">✏️ Tahrirlash <button class="btn btn-gray" onclick="closeEdit()">✕ Yopish</button></div>'+
@@ -378,13 +521,13 @@ function selectQuestion(id){
     '</div>';
   panel.scrollIntoView({behavior:'smooth',block:'start'});
 }
- 
+
 function updateCorrectBox(){
   for(var i=0;i<4;i++){var b=document.getElementById('optBox'+i);if(b)b.className='option-box'}
   var c=document.querySelector('input[name="editCorrect"]:checked');
   if(c){var b=document.getElementById('optBox'+c.value);if(b)b.className='option-box correct-box'}
 }
- 
+
 async function saveEdit(id){
   var c=document.querySelector('input[name="editCorrect"]:checked');
   if(!c){setStatus('editStatus','❌ To\'g\'ri javobni tanlang!','error');return}
@@ -415,7 +558,7 @@ async function saveEdit(id){
       questionAudioUrl:qAudioUrl,questionImageUrl:qImageUrl,
       correctIndex:parseInt(c.value),options:opts
     };
- 
+
     // Guruh savolida audio/rasm o'zgarsa — guruh boshqa savollarini ham yangilash
     if(item.groupId&&(newFiles.qAudio||newFiles.qImage)){
       var groupSiblings=allQuestions.filter(function(q){
@@ -433,7 +576,7 @@ async function saveEdit(id){
         }
       }
     }
- 
+
     await db.collection('questions').doc(id).update(upd);
     var idx=allQuestions.findIndex(function(q){return q._id===id});
     if(idx!==-1)Object.keys(upd).forEach(function(k){allQuestions[idx][k]=upd[k]});
@@ -443,14 +586,14 @@ async function saveEdit(id){
   }catch(e){setStatus('editStatus','❌ Xato: '+e.message,'error')}
   if(saveBtn)saveBtn.disabled=false;
 }
- 
+
 function closeEdit(){
   selectedId=null;
   newFiles={qAudio:null,qImage:null,opt:[null,null,null,null],optImg:[null,null,null,null]};
   document.getElementById('editPanel').style.display='none';
   onSearch();
 }
- 
+
 // ══ LAST ══
 function loadLast(){
   setStatus('lastStatus','⏳ Yuklanmoqda...','loading');
@@ -463,12 +606,12 @@ function loadLast(){
     var d=snap.docs[0].data();
     var docId=snap.docs[0].id;
     setStatus('lastStatus','✅ Yuklandi!','success');
- 
+
     var groupHtml='';
     if(d.groupId){
       groupHtml='<div class="group-info" style="margin-bottom:12px">🔗 Guruh savol: '+d.groupOrder+'/? &nbsp;|&nbsp; Group ID: '+d.groupId+'</div>';
     }
- 
+
     var html='<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px">';
     html+='<div class="q-meta" style="margin-bottom:10px">';
     html+='<span class="badge bb">'+(d.section||'?')+'</span>';
@@ -501,7 +644,7 @@ function loadLast(){
     document.getElementById('lastResult').innerHTML=html;
   }).catch(function(e){setStatus('lastStatus','❌ Xato: '+e.message,'error')});
 }
- 
+
 // ══ STATS ══
 function loadStats(){
   setStatus('statsStatus','⏳ Yuklanmoqda...','loading');
@@ -540,4 +683,3 @@ function loadStats(){
 </script>
 </body>
 </html>
- 
