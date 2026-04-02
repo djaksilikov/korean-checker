@@ -382,43 +382,163 @@ function deleteQ(id){
 }
 
 function selectLastQ(id){
-  document.querySelectorAll('#lastList .q-item').forEach(function(el){el.classList.remove('selected')});
-  var el=document.getElementById('lq_'+id);
-  if(el) el.classList.add('selected');
+  document.querySelectorAll("#lastList .q-item").forEach(function(el){el.classList.remove("selected")});
+  var sel=document.getElementById("lq_"+id);
+  if(sel) sel.classList.add("selected");
   var item=lastItems.find(function(q){return q._id===id});
   if(!item)return;
   newFiles={qAudio:null,qImage:null,opt:[null,null,null,null],optImg:[null,null,null,null]};
   var opts=item.options||[];
-  var gi=item.groupId?'<div class="group-info">🔗 Guruh: '+item.groupId+' | Tartib: '+item.groupOrder+'</div>':'';
-  var oh='<div class="options-grid">';
-  for(var i=0;i<4;i++){
-    var opt=opts[i]||{};var isC=item.correctIndex===i;
-    oh+='<div class="option-box'+(isC?' correct-box':'')+'" id="lob'+i+'">';
-    oh+='<div class="option-label">'+['①','②','③','④'][i]+
-      '<label class="correct-radio"><input type="radio" name="lec" value="'+i+'"'+(isC?' checked':'')+' onchange="lmarkCB('+i+')"> To&#39;g&#39;ri</label></div>';
-    oh+='<textarea id="leO'+i+'" style="min-height:44px">'+(opt.text||'')+'</textarea>';
-    oh+='<label class="upload-btn">🎧 Audio<input type="file" accept="audio/*" onchange="onLEF(&#39;oa&#39;,'+i+',this)"></label>';
-    oh+='<span class="file-status" id="loas'+i+'">'+(opt.audioUrl?'✅ Mavjud':'—')+'</span>';
-    oh+='<label class="upload-btn">🖼 Rasm<input type="file" accept="image/*" onchange="onLEF(&#39;oi&#39;,'+i+',this)"></label>';
-    oh+='<span class="file-status" id="lois'+i+'">'+(opt.imageUrl?'✅ Mavjud':'—')+'</span>';
-    oh+='</div>';
+  var ep=document.getElementById("lastEditPanel");
+  ep.style.display="block";
+  ep.innerHTML="";
+
+  var panel=document.createElement("div");
+  panel.className="edit-panel";
+
+  // Sarlavha
+  var titleDiv=document.createElement("div");
+  titleDiv.className="edit-title";
+  titleDiv.innerHTML="<span>Tahrirlash</span>";
+  var delBtn=document.createElement("button");
+  delBtn.className="btn btn-red";
+  delBtn.textContent="O'chirish";
+  delBtn.onclick=function(){deleteLastQ(id)};
+  titleDiv.appendChild(delBtn);
+  panel.appendChild(titleDiv);
+
+  // Guruh info
+  if(item.groupId){
+    var gi=document.createElement("div");
+    gi.className="group-info";
+    gi.textContent="Guruh: "+item.groupId+" | Tartib: "+item.groupOrder;
+    panel.appendChild(gi);
   }
-  oh+='</div>';
-  var ep=document.getElementById('lastEditPanel');
-  ep.style.display='block';
-  ep.innerHTML='<div class="edit-panel">'+
-    '<div class="edit-title">✏️ Tahrirlash <button class="btn btn-red" onclick="deleteLastQ(&#39;'+id+'&#39;)">🗑 O&#39;chirish</button></div>'+gi+
-    '<div class="field"><label>Savol maqsadi</label><textarea id="leP">'+(item.purpose||'')+'</textarea></div>'+
-    '<div class="field"><label>Savol matni</label><textarea id="leQ">'+(item.questionText||'')+'</textarea></div>'+
-    '<div class="field"><label>Audio</label><label class="upload-btn">🎧 Yangi audio<input type="file" accept="audio/*" onchange="onLEF(&#39;qa&#39;,0,this)"></label>'+
-    '<span class="file-status" id="leqas">'+(item.questionAudioUrl?'✅ Mavjud':'—')+'</span></div>'+
-    '<div class="field"><label>Rasm</label><label class="upload-btn">🖼 Yangi rasm<input type="file" accept="image/*" onchange="onLEF(&#39;qi&#39;,0,this)"></label>'+
-    '<span class="file-status" id="leqis">'+(item.questionImageUrl?'✅ Mavjud':'—')+'</span>'+
-    (item.questionImageUrl?'<img src="'+item.questionImageUrl+'" style="max-height:80px;margin-top:6px;border-radius:6px">':'')+'</div>'+
-    oh+
-    '<div id="less" class="status" style="margin-top:12px"></div>'+
-    '<button class="btn btn-green" onclick="saveLastEdit(&#39;'+id+'&#39;)" style="margin-top:12px;width:100%">💾 Saqlash</button></div>';
-  ep.scrollIntoView({behavior:'smooth',block:'nearest'});
+
+  // Maqsad
+  var f1=document.createElement("div");f1.className="field";
+  f1.innerHTML="<label>Savol maqsadi</label><textarea id='leP'></textarea>";
+  panel.appendChild(f1);
+  panel.querySelector("#leP").value=item.purpose||"";
+
+  // Savol matni
+  var f2=document.createElement("div");f2.className="field";
+  f2.innerHTML="<label>Savol matni</label><textarea id='leQ'></textarea>";
+  panel.appendChild(f2);
+  panel.querySelector("#leQ").value=item.questionText||"";
+
+  // Savol audio
+  var f3=document.createElement("div");f3.className="field";
+  var audioHtml="<label>Savol audiosi</label>";
+  if(item.questionAudioUrl){
+    audioHtml+="<audio controls style='width:100%;height:36px;margin-bottom:6px;display:block'><source src='"+item.questionAudioUrl+"'></audio>";
+  } else {
+    audioHtml+="<div style='font-size:12px;color:var(--muted);margin-bottom:6px'>Audio yoq</div>";
+  }
+  audioHtml+="<label class='upload-btn'>Audio qoshish/almashtirish<input type='file' id='leqAudio' accept='audio/*'></label>";
+  audioHtml+="<span class='file-status' id='leqas'>"+(item.questionAudioUrl?"Mavjud":"—")+"</span>";
+  f3.innerHTML=audioHtml;
+  panel.appendChild(f3);
+  panel.querySelector("#leqAudio").addEventListener("change",function(){
+    newFiles.qAudio=this.files[0];
+    showFS("leqas","Audio: "+this.files[0].name,true);
+  });
+
+  // Savol rasmi
+  var f4=document.createElement("div");f4.className="field";
+  var imgHtml="<label>Savol rasmi</label>";
+  if(item.questionImageUrl){
+    imgHtml+="<img src='"+item.questionImageUrl+"' style='max-height:120px;border-radius:8px;display:block;margin-bottom:6px'>";
+  } else {
+    imgHtml+="<div style='font-size:12px;color:var(--muted);margin-bottom:6px'>Rasm yoq</div>";
+  }
+  imgHtml+="<label class='upload-btn'>Rasm qoshish/almashtirish<input type='file' id='leqImage' accept='image/*'></label>";
+  imgHtml+="<span class='file-status' id='leqis'>"+(item.questionImageUrl?"Mavjud":"—")+"</span>";
+  f4.innerHTML=imgHtml;
+  panel.appendChild(f4);
+  panel.querySelector("#leqImage").addEventListener("change",function(){
+    newFiles.qImage=this.files[0];
+    showFS("leqis","Rasm: "+this.files[0].name,true);
+  });
+
+  // Variantlar
+  var og=document.createElement("div");og.className="options-grid";
+  for(var i=0;i<4;i++){
+    var opt=opts[i]||{};
+    var isC=item.correctIndex===i;
+    var ob=document.createElement("div");
+    ob.className="option-box"+(isC?" correct-box":"");
+    ob.id="lob"+i;
+
+    var oLbl=["①","②","③","④"][i];
+    var oText=opt.text||"";
+    var oHasAudio=!!opt.audioUrl;
+    var oHasImg=!!opt.imageUrl;
+
+    var inner="<div class='option-label'>"+oLbl+
+      "<label class='correct-radio'><input type='radio' name='lec' value='"+i+"'"+(isC?" checked":"")+"> To'g'ri</label></div>"+
+      "<textarea id='leO"+i+"' style='min-height:44px'>"+oText+"</textarea>";
+
+    // Audio
+    inner+="<div style='margin-top:6px'>";
+    if(oHasAudio){
+      inner+="<audio controls style='width:100%;height:32px;margin-bottom:4px'><source src='"+opt.audioUrl+"'></audio>";
+    } else {
+      inner+="<div style='font-size:11px;color:var(--muted);margin-bottom:4px'>Audio yoq</div>";
+    }
+    inner+="<label class='upload-btn' style='font-size:11px'>Audio<input type='file' id='loaFile"+i+"' accept='audio/*'></label>";
+    inner+="<span class='file-status' id='loas"+i+"'>"+(oHasAudio?"Mavjud":"—")+"</span></div>";
+
+    // Rasm
+    inner+="<div style='margin-top:6px'>";
+    if(oHasImg){
+      inner+="<img src='"+opt.imageUrl+"' style='max-height:70px;border-radius:6px;display:block;margin-bottom:4px'>";
+    } else {
+      inner+="<div style='font-size:11px;color:var(--muted);margin-bottom:4px'>Rasm yoq</div>";
+    }
+    inner+="<label class='upload-btn' style='font-size:11px'>Rasm<input type='file' id='loiFile"+i+"' accept='image/*'></label>";
+    inner+="<span class='file-status' id='lois"+i+"'>"+(oHasImg?"Mavjud":"—")+"</span></div>";
+
+    ob.innerHTML=inner;
+    og.appendChild(ob);
+  }
+  panel.appendChild(og);
+
+  // Radio listeners
+  panel.querySelectorAll("input[name='lec']").forEach(function(r){
+    r.addEventListener("change",function(){lmarkCB(parseInt(this.value))});
+  });
+
+  // Variant file listeners
+  for(var j=0;j<4;j++){
+    (function(idx){
+      var aEl=panel.querySelector("#loaFile"+idx);
+      if(aEl) aEl.addEventListener("change",function(){
+        newFiles.opt[idx]=this.files[0];
+        showFS("loas"+idx,"Audio: "+this.files[0].name,true);
+      });
+      var iEl=panel.querySelector("#loiFile"+idx);
+      if(iEl) iEl.addEventListener("change",function(){
+        newFiles.optImg[idx]=this.files[0];
+        showFS("lois"+idx,"Rasm: "+this.files[0].name,true);
+      });
+    })(j);
+  }
+
+  // Status va saqlash
+  var statusDiv=document.createElement("div");
+  statusDiv.id="less";statusDiv.className="status";statusDiv.style.marginTop="12px";
+  panel.appendChild(statusDiv);
+
+  var saveBtn=document.createElement("button");
+  saveBtn.className="btn btn-green";
+  saveBtn.style.cssText="margin-top:12px;width:100%";
+  saveBtn.textContent="Saqlash";
+  saveBtn.onclick=function(){saveLastEdit(id)};
+  panel.appendChild(saveBtn);
+
+  ep.appendChild(panel);
+  ep.scrollIntoView({behavior:"smooth",block:"nearest"});
 }
 function lmarkCB(i){for(var j=0;j<4;j++){var b=document.getElementById('lob'+j);if(b)b.className='option-box'+(j===i?' correct-box':'')}}
 
@@ -429,6 +549,7 @@ function onLEF(type,idx,input){
   else if(type==='oa'){newFiles.opt[idx]=file;showFS('loas'+idx,'🎧 '+file.name,true)}
   else if(type==='oi'){newFiles.optImg[idx]=file;showFS('lois'+idx,'🖼 '+file.name,true)}
 }
+function onLEF2(type,idx,input){onLEF(type,idx,input)}
 
 async function saveLastEdit(id){
   setStatus('less','⏳ Saqlanmoqda...','loading');
@@ -473,7 +594,7 @@ function deleteLastQ(id){
 function loadLast(){
   var el=document.getElementById('lastList');
   el.innerHTML='<div class="spinner">⏳ Yuklanmoqda...</div>';
-  db.collection('questions').orderBy('createdAt','desc').limit(20).get().then(function(snap){
+  db.collection('questions').orderBy('createdAt','desc').limit(50).get().then(function(snap){
     if(snap.empty){el.innerHTML='<div class="spinner">Bo\'sh</div>';return}
     var items=snap.docs.map(function(d){var data=d.data();data._id=d.id;return data});
     var sorted=[];var seen={};
@@ -655,6 +776,99 @@ function blockUD(uid,val){
   db.collection('users').doc(uid).set({blocked:blocked},{merge:true})
     .then(function(){searchUsers()})
     .catch(function(e){alert('Xato: '+e.message)});
+}
+
+
+
+function findDuplicates(){
+  var status=document.getElementById("dupStatus");
+  var el=document.getElementById("dupList");
+  if(!status||!el)return;
+  status.textContent="Yuklanmoqda...";
+  el.innerHTML="";
+  db.collection("questions").get().then(function(snap){
+    var all=snap.docs.map(function(d){var data=d.data();data._id=d.id;return data});
+    var imgMap={};
+    var audioMap={};
+    all.forEach(function(item){
+      function addImg(url,src){
+        if(!url)return;
+        if(!imgMap[url])imgMap[url]=[];
+        imgMap[url].push(src);
+      }
+      function addAud(url,src){
+        if(!url)return;
+        if(!audioMap[url])audioMap[url]=[];
+        audioMap[url].push(src);
+      }
+      addImg(item.questionImageUrl,item);
+      addAud(item.questionAudioUrl,item);
+      var opts=item.options||[];
+      opts.forEach(function(opt,i){
+        addImg(opt.imageUrl,{_id:item._id,_optIdx:i,isOpt:true,purpose:item.purpose,section:item.section,questionText:item.questionText,groupId:item.groupId});
+        addAud(opt.audioUrl,{_id:item._id,_optIdx:i,isOpt:true,purpose:item.purpose,section:item.section,questionText:item.questionText,groupId:item.groupId});
+      });
+    });
+    function isDup(arr){
+      if(arr.length<2)return false;
+      var gids=arr.map(function(i){return i.groupId||null});
+      return !(gids[0]&&gids.every(function(g){return g===gids[0]}));
+    }
+    var dupImgs=Object.entries(imgMap).filter(function(e){return isDup(e[1])});
+    var dupAudios=Object.entries(audioMap).filter(function(e){return isDup(e[1])});
+    var total=dupImgs.length+dupAudios.length;
+    status.textContent=total===0?"Hammasi yaxshi":"Dublikat: "+dupImgs.length+" rasm, "+dupAudios.length+" audio";
+    if(total===0){
+      el.innerHTML="<div style=\"color:var(--green);padding:16px;font-size:13px\">Barcha savollar unikal!</div>";
+      return;
+    }
+    var parts=[];
+    if(dupImgs.length){
+      parts.push("<div style=\"font-size:12px;font-weight:700;color:var(--red);margin:12px 0 8px\">Bir xil rasm</div>");
+      dupImgs.forEach(function(e){
+        var url=e[0];var items=e[1];
+        var block="<div style=\"background:var(--surface);border:1.5px solid var(--red);border-radius:12px;padding:14px;margin-bottom:10px\">";
+        block+="<img src=\""+url+"\" style=\"max-height:80px;border-radius:8px;margin-bottom:10px;display:block\">";
+        items.forEach(function(item){
+          var lbl=item.isOpt?"Variant "+(item._optIdx+1):"Savol rasmi";
+          var txt=(item.purpose||item.questionText||"").substring(0,50);
+          block+="<div style=\"display:flex;justify-content:space-between;align-items:center;padding:8px;background:var(--surface2);border-radius:8px;margin-bottom:6px\">";
+          block+="<div><span style=\"font-size:10px;color:var(--muted)\">"+lbl+" - "+item.section+"</span><br><span style=\"font-size:12px\">"+txt+"</span></div>";
+          block+="<button data-del=\""+item._id+"\" style=\"padding:4px 10px;border-radius:6px;border:1.5px solid var(--red);background:transparent;color:var(--red);font-size:11px;cursor:pointer;flex-shrink:0\">Ochir</button>";
+          block+="</div>";
+        });
+        block+="</div>";
+        parts.push(block);
+      });
+    }
+    if(dupAudios.length){
+      parts.push("<div style=\"font-size:12px;font-weight:700;color:var(--yellow);margin:12px 0 8px\">Bir xil audio</div>");
+      dupAudios.forEach(function(e){
+        var url=e[0];var items=e[1];
+        var block="<div style=\"background:var(--surface);border:1.5px solid var(--yellow);border-radius:12px;padding:14px;margin-bottom:10px\">";
+        block+="<audio controls style=\"width:100%;height:32px;margin-bottom:8px\"><source src=\""+url+"\"></audio>";
+        items.forEach(function(item){
+          var lbl=item.isOpt?"Variant "+(item._optIdx+1):"Savol audiosi";
+          var txt=(item.purpose||item.questionText||"").substring(0,50);
+          block+="<div style=\"display:flex;justify-content:space-between;align-items:center;padding:8px;background:var(--surface2);border-radius:8px;margin-bottom:6px\">";
+          block+="<div><span style=\"font-size:10px;color:var(--muted)\">"+lbl+" - "+item.section+"</span><br><span style=\"font-size:12px\">"+txt+"</span></div>";
+          block+="<button data-del=\""+item._id+"\" style=\"padding:4px 10px;border-radius:6px;border:1.5px solid var(--red);background:transparent;color:var(--red);font-size:11px;cursor:pointer;flex-shrink:0\">Ochir</button>";
+          block+="</div>";
+        });
+        block+="</div>";
+        parts.push(block);
+      });
+    }
+    el.innerHTML=parts.join("");
+    el.querySelectorAll("[data-del]").forEach(function(btn){
+      btn.addEventListener("click",function(){
+        var id=this.getAttribute("data-del");
+        if(confirm("Rostdan ochirasizmi?")){
+          db.collection("questions").doc(id).delete().then(function(){findDuplicates()});
+        }
+      });
+    });
+  }).catch(function(e){status.textContent="Xato: "+e.message});
 }
 
 window.onload=function(){
