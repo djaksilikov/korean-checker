@@ -396,317 +396,249 @@ function deleteQ(id){
 }
 
 function selectLastQ(id){
-  // Ro'yxatda selected
+  // Ro'yxatda belgilaymiz
   document.querySelectorAll("#lastList .q-item").forEach(function(el){el.classList.remove("selected")});
   var selEl=document.getElementById("lq_"+id);
   if(selEl) selEl.classList.add("selected");
 
-  // Har safar Firebase dan yangi o'qiymiz
+  var ep=document.getElementById("lastEditPanel");
+  ep.innerHTML="<div style='color:var(--muted);font-size:13px;text-align:center;padding:20px'>⏳ Yuklanmoqda...</div>";
+
+  // Firebase dan to'g'ridan o'qiymiz
   db.collection("questions").doc(id).get().then(function(doc){
-    if(!doc.exists)return;
-    var item=doc.data();item._id=doc.id;
-    // lastItems ni ham yangilaymiz
+    if(!doc.exists){ep.innerHTML="<div style='color:var(--red);padding:16px'>Savol topilmadi</div>";return;}
+    var item=doc.data();
+    item._id=doc.id;
     var idx=lastItems.findIndex(function(q){return q._id===id});
     if(idx!==-1) lastItems[idx]=item;
-    renderLastEdit(id,item);
+    buildEditPanel(ep, id, item);
+  }).catch(function(e){
+    ep.innerHTML="<div style='color:var(--red);padding:16px'>Xato: "+e.message+"</div>";
   });
 }
 
-function renderLastEdit(id,item){
-  newFiles={qAudio:null,qImage:null,opt:[null,null,null,null],optImg:[null,null,null,null]};
-
-  var ep=document.getElementById("lastEditPanel");
+function buildEditPanel(ep, id, item){
   ep.innerHTML="";
+  var opts=item.options||[];
 
-  // ══ SARLAVHA ══
+  // ── Sarlavha ──
   var hdr=document.createElement("div");
-  hdr.style.cssText="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px";
-  hdr.innerHTML="<span style='font-size:14px;font-weight:800'>✏️ Tahrirlash</span>";
+  hdr.style.cssText="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border)";
+  hdr.innerHTML="<span style='font-size:14px;font-weight:800'>✏️ ID: "+id.substring(0,8)+"...</span>";
   var dBtn=document.createElement("button");
-  dBtn.className="btn btn-red";
-  dBtn.textContent="🗑 O'chirish";
-  dBtn.style.fontSize="12px";
+  dBtn.className="btn btn-red";dBtn.style.fontSize="12px";dBtn.textContent="🗑 O'chirish";
   dBtn.onclick=function(){
-    if(confirm("Rostdan ochirasizmi?")){
-      db.collection("questions").doc(id).delete().then(function(){
-        ep.innerHTML="<div style='color:var(--muted);font-size:13px;text-align:center;padding:40px 0'>Savol ochirildi</div>";
-        loadLast();
-      });
+    if(!confirm("Rostdan ochirasizmi?"))return;
+    db.collection("questions").doc(id).delete().then(function(){
+      ep.innerHTML="<div style='color:var(--green);padding:16px'>O'chirildi</div>";
+      loadLast();
+    });
+  };
+  hdr.appendChild(dBtn);ep.appendChild(hdr);
+
+  // ── Matn maydonlari ──
+  function mkField(lbl,tid,val){
+    var d=document.createElement("div");d.className="field";
+    d.innerHTML="<label>"+lbl+"</label><textarea id='"+tid+"' style='min-height:50px'></textarea>";
+    ep.appendChild(d);
+    ep.querySelector("#"+tid).value=val||"";
+  }
+  mkField("Savol maqsadi","leP",item.purpose);
+  mkField("Savol matni","leQ",item.questionText);
+
+  // ── To'g'ri javob ──
+  var cf=document.createElement("div");cf.className="field";
+  cf.innerHTML="<label>To'g'ri javob</label><select id='leCorrect' style='width:100%'>"+
+    [0,1,2,3].map(function(i){
+      return "<option value='"+i+"'"+(item.correctIndex===i?" selected":"")+">"+(["①","②","③","④"][i])+" "+(i+1)+"-variant</option>";
+    }).join("")+"</select>";
+  ep.appendChild(cf);
+
+  // ── Media blok funksiyasi ──
+  function mkMedia(label, url, type, updateFn){
+    var d=document.createElement("div");d.className="field";
+    var l=document.createElement("label");l.textContent=label;d.appendChild(l);
+
+    if(url){
+      if(type==="audio"){
+        var player=document.createElement("audio");
+        player.controls=true;player.style.cssText="width:100%;height:34px;margin-bottom:6px;display:block";
+        player.innerHTML="<source src='"+url+"'>";
+        d.appendChild(player);
+      } else {
+        var img=document.createElement("img");
+        img.src=url;img.style.cssText="max-width:100%;max-height:160px;border-radius:8px;display:block;margin-bottom:6px;border:1px solid var(--border)";
+        d.appendChild(img);
+      }
+      // O'chirish tugmasi
+      var delBtn=document.createElement("button");
+      delBtn.style.cssText="font-size:11px;padding:3px 10px;border-radius:6px;border:1.5px solid var(--red);background:transparent;color:var(--red);cursor:pointer;margin-bottom:6px;display:inline-block;margin-right:6px";
+      delBtn.textContent="🗑 O'chirish";
+      delBtn.onclick=function(){
+        if(!confirm("O'chirasizmi?"))return;
+        updateFn(null).then(function(){selectLastQ(id)});
+      };
+      d.appendChild(delBtn);
+    } else {
+      var noEl=document.createElement("div");
+      noEl.style.cssText="font-size:12px;color:var(--muted);margin-bottom:6px";
+      noEl.textContent=type==="audio"?"Audio yo'q":"Rasm yo'q";
+      d.appendChild(noEl);
     }
-  };
-  hdr.appendChild(dBtn);
-  ep.appendChild(hdr);
 
-  // Guruh info
-  if(item.groupId){
-    var gi=document.createElement("div");
-    gi.className="group-info";
-    gi.textContent="🔗 Guruh: "+item.groupId+" | Tartib: "+item.groupOrder;
-    ep.appendChild(gi);
-  }
-
-  // ══ MATN MAYDONLARI ══
-  function addField(label,id,val){
-    var f=document.createElement("div");f.className="field";
-    var l=document.createElement("label");l.textContent=label;
-    var ta=document.createElement("textarea");
-    ta.id=id;ta.value=val||"";
-    f.appendChild(l);f.appendChild(ta);
-    ep.appendChild(f);
-  }
-  addField("Savol maqsadi","leP",item.purpose);
-  addField("Savol matni","leQ",item.questionText);
-
-  // ══ SAVOL AUDIO ══
-  var aDiv=document.createElement("div");aDiv.className="field";
-  var aLabel=document.createElement("label");aLabel.textContent="Savol audiosi";
-  aDiv.appendChild(aLabel);
-  if(item.questionAudioUrl){
-    var aPlayer=document.createElement("audio");
-    aPlayer.controls=true;
-    aPlayer.style.cssText="width:100%;height:36px;margin-bottom:6px;display:block";
-    var aSource=document.createElement("source");
-    aSource.src=item.questionAudioUrl;
-    aPlayer.appendChild(aSource);
-    aDiv.appendChild(aPlayer);
-    // O'chirish tugmasi
-    var aDelBtn=document.createElement("button");
-    aDelBtn.className="btn btn-red";
-    aDelBtn.style.cssText="font-size:11px;padding:4px 10px;margin-bottom:6px";
-    aDelBtn.textContent="🗑 Audioni o'chirish";
-    aDelBtn.onclick=function(){
-      if(confirm("Audioni o'chirasizmi?")){
-        db.collection("questions").doc(id).update({questionAudioUrl:null})
-          .then(function(){aDiv.querySelector("audio").remove();aDelBtn.remove();aStatus.textContent="—";});
-      }
+    // Yuklash tugmasi
+    var upLabel=document.createElement("label");upLabel.className="upload-btn";upLabel.style.fontSize="12px";
+    upLabel.textContent=url?(type==="audio"?"🎧 Almashtirish":"🖼 Almashtirish"):(type==="audio"?"🎧 Qo'shish":"🖼 Qo'shish");
+    var upInput=document.createElement("input");upInput.type="file";
+    upInput.accept=type==="audio"?"audio/*":"image/*";
+    upInput.onchange=function(){
+      if(!this.files[0])return;
+      var file=this.files[0];
+      var ext=file.name.split(".").pop()||"bin";
+      var path=(type==="audio"?"audio":"images")+"/"+Date.now()+"_"+Math.random().toString(36).substring(2,8)+"."+ext;
+      upLabel.textContent="⏳ Yuklanmoqda...";
+      storage.ref(path).put(file).then(function(snap){
+        return snap.ref.getDownloadURL();
+      }).then(function(downloadUrl){
+        return updateFn(downloadUrl);
+      }).then(function(){
+        upLabel.textContent="✅ Yuklandi!";
+        setTimeout(function(){selectLastQ(id)},500);
+      }).catch(function(e){upLabel.textContent="❌ Xato: "+e.message});
     };
-    aDiv.appendChild(aDelBtn);
-  } else {
-    var noA=document.createElement("div");
-    noA.style.cssText="font-size:12px;color:var(--muted);margin-bottom:6px";
-    noA.textContent="Audio yo'q";
-    aDiv.appendChild(noA);
+    upLabel.appendChild(upInput);d.appendChild(upLabel);
+    ep.appendChild(d);
   }
-  var aUpload=document.createElement("label");
-  aUpload.className="upload-btn";
-  aUpload.style.marginTop="4px";
-  aUpload.textContent=item.questionAudioUrl?"🎧 Almashtirish":"🎧 Audio qo'shish";
-  var aInput=document.createElement("input");
-  aInput.type="file";aInput.accept="audio/*";
-  aInput.onchange=function(){
-    if(!this.files[0])return;
-    newFiles.qAudio=this.files[0];
-    showFS("leqas","✅ "+this.files[0].name,true);
-  };
-  aUpload.appendChild(aInput);
-  aDiv.appendChild(aUpload);
-  var aStatus=document.createElement("span");
-  aStatus.id="leqas";aStatus.className="file-status has-file";
-  aStatus.textContent=item.questionAudioUrl?"✅ Mavjud":"—";
-  aDiv.appendChild(aStatus);
-  ep.appendChild(aDiv);
 
-  // ══ SAVOL RASMI ══
-  var iDiv=document.createElement("div");iDiv.className="field";
-  var iLabel=document.createElement("label");iLabel.textContent="Savol rasmi";
-  iDiv.appendChild(iLabel);
-  if(item.questionImageUrl){
-    var img=document.createElement("img");
-    img.src=item.questionImageUrl;
-    img.style.cssText="max-width:100%;max-height:200px;border-radius:8px;display:block;margin-bottom:6px;border:1px solid var(--border)";
-    iDiv.appendChild(img);
-    // O'chirish tugmasi
-    var iDelBtn=document.createElement("button");
-    iDelBtn.className="btn btn-red";
-    iDelBtn.style.cssText="font-size:11px;padding:4px 10px;margin-bottom:6px";
-    iDelBtn.textContent="🗑 Rasmni o'chirish";
-    iDelBtn.onclick=function(){
-      if(confirm("Rasmni o'chirasizmi?")){
-        db.collection("questions").doc(id).update({questionImageUrl:null})
-          .then(function(){img.remove();iDelBtn.remove();iStatus.textContent="—";});
-      }
-    };
-    iDiv.appendChild(iDelBtn);
-  } else {
-    var noI=document.createElement("div");
-    noI.style.cssText="font-size:12px;color:var(--muted);margin-bottom:6px";
-    noI.textContent="Rasm yo'q";
-    iDiv.appendChild(noI);
-  }
-  var iUpload=document.createElement("label");
-  iUpload.className="upload-btn";
-  iUpload.style.marginTop="4px";
-  iUpload.textContent=item.questionImageUrl?"🖼 Almashtirish":"🖼 Rasm qo'shish";
-  var iInput=document.createElement("input");
-  iInput.type="file";iInput.accept="image/*";
-  iInput.onchange=function(){
-    if(!this.files[0])return;
-    newFiles.qImage=this.files[0];
-    showFS("leqis","✅ "+this.files[0].name,true);
-    var reader=new FileReader();
-    reader.onload=function(e){img&&(img.src=e.target.result)};
-    reader.readAsDataURL(this.files[0]);
-  };
-  iUpload.appendChild(iInput);
-  iDiv.appendChild(iUpload);
-  var iStatus=document.createElement("span");
-  iStatus.id="leqis";iStatus.className="file-status has-file";
-  iStatus.textContent=item.questionImageUrl?"✅ Mavjud":"—";
-  iDiv.appendChild(iStatus);
-  ep.appendChild(iDiv);
-
-  // ══ TO'G'RI JAVOB ══
-  var cDiv=document.createElement("div");cDiv.className="field";
-  var cLabel=document.createElement("label");cLabel.textContent="To'g'ri javob";
-  var cSel=document.createElement("select");cSel.id="leCorrect";
-  ["1-variant","2-variant","3-variant","4-variant"].forEach(function(t,i){
-    var o=document.createElement("option");o.value=i;o.textContent=["①","②","③","④"][i]+" "+t;
-    if(i===item.correctIndex)o.selected=true;
-    cSel.appendChild(o);
+  // Savol audio va rasmi
+  mkMedia("Savol audiosi", item.questionAudioUrl, "audio", function(url){
+    return db.collection("questions").doc(id).update({questionAudioUrl:url});
   });
-  cDiv.appendChild(cLabel);cDiv.appendChild(cSel);
-  ep.appendChild(cDiv);
+  mkMedia("Savol rasmi", item.questionImageUrl, "image", function(url){
+    return db.collection("questions").doc(id).update({questionImageUrl:url});
+  });
 
-  // ══ VARIANTLAR ══
+  // ── Variantlar ──
   var vTitle=document.createElement("div");
   vTitle.style.cssText="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;margin:16px 0 10px;font-family:'IBM Plex Mono',monospace";
-  vTitle.textContent="VARIANTLAR";
-  ep.appendChild(vTitle);
+  vTitle.textContent="VARIANTLAR";ep.appendChild(vTitle);
 
-  var opts=item.options||[];
-  var vGrid=document.createElement("div");
-  vGrid.className="options-grid";
+  var vGrid=document.createElement("div");vGrid.className="options-grid";
 
   for(var vi=0;vi<4;vi++){
     (function(i){
       var opt=opts[i]||{};
       var isC=item.correctIndex===i;
-      var vCard=document.createElement("div");
-      vCard.className="vcard"+(isC?" correct-selected":"");
-      vCard.id="lvcard"+i;
+      var vc=document.createElement("div");
+      vc.className="vcard"+(isC?" correct-selected":"");
 
-      // Variant sarlavha
-      var vHdr=document.createElement("div");vHdr.className="vcard-header";
-      var vNum=document.createElement("span");vNum.className="vnum";vNum.textContent="VARIANT "+(i+1);
-      vHdr.appendChild(vNum);
-      vCard.appendChild(vHdr);
+      var vh=document.createElement("div");vh.className="vcard-header";
+      vh.innerHTML="<span class='vnum'>"+["①","②","③","④"][i]+" VARIANT</span>";
+      vc.appendChild(vh);
 
-      // Variant matni
-      var vf=document.createElement("div");vf.className="vfield";
-      var vfl=document.createElement("label");vfl.textContent="Matn";
-      var vta=document.createElement("textarea");
-      vta.id="leO"+i;vta.value=opt.text||"";vta.style.minHeight="44px";
-      vf.appendChild(vfl);vf.appendChild(vta);
-      vCard.appendChild(vf);
+      // Matn
+      var vtf=document.createElement("div");vtf.className="vfield";
+      vtf.innerHTML="<label>Matn</label><textarea id='leO"+i+"' style='min-height:44px'></textarea>";
+      vc.appendChild(vtf);
+      vc.querySelector("#leO"+i).value=opt.text||"";
 
       // Variant audio
-      var vaDiv=document.createElement("div");vaDiv.className="vfield";
-      var vaLabel=document.createElement("label");vaLabel.textContent="Audio";
-      vaDiv.appendChild(vaLabel);
-      if(opt.audioUrl){
-        var vaPlayer=document.createElement("audio");
-        vaPlayer.controls=true;
-        vaPlayer.style.cssText="width:100%;height:30px;margin-bottom:4px;display:block";
-        var vaSource=document.createElement("source");vaSource.src=opt.audioUrl;
-        vaPlayer.appendChild(vaSource);
-        vaDiv.appendChild(vaPlayer);
-        var vaDelBtn=document.createElement("button");
-        vaDelBtn.style.cssText="font-size:10px;padding:3px 8px;border-radius:5px;border:1px solid var(--red);background:transparent;color:var(--red);cursor:pointer;margin-bottom:4px;display:block";
-        vaDelBtn.textContent="🗑 O'chirish";
-        vaDelBtn.onclick=(function(idx,btn,player){return function(){
-          if(confirm("Audioni o'chirasizmi?")){
-            var opts2=item.options?JSON.parse(JSON.stringify(item.options)):[];
-            if(opts2[idx])opts2[idx].audioUrl=null;
-            db.collection("questions").doc(id).update({options:opts2})
-              .then(function(){player.remove();btn.remove();showFS("loas"+idx,"—",false);});
-          }
-        }})(i,vaDelBtn,vaPlayer);
-        vaDiv.appendChild(vaDelBtn);
-      } else {
-        var vaNo=document.createElement("div");
-        vaNo.style.cssText="font-size:11px;color:var(--muted);margin-bottom:4px";
-        vaNo.textContent="Audio yo'q";
-        vaDiv.appendChild(vaNo);
-      }
-      var vaUp=document.createElement("label");vaUp.className="upload-btn";
-      vaUp.style.cssText="font-size:11px;margin-top:2px";
-      vaUp.textContent=opt.audioUrl?"🎧 Almashtir":"🎧 Qo'shish";
-      var vaIn=document.createElement("input");vaIn.type="file";vaIn.accept="audio/*";
-      vaIn.onchange=(function(idx){return function(){
-        if(!this.files[0])return;
-        newFiles.opt[idx]=this.files[0];
-        showFS("loas"+idx,"✅ "+this.files[0].name,true);
-      }})(i);
-      vaUp.appendChild(vaIn);vaDiv.appendChild(vaUp);
-      var vaStatus=document.createElement("span");
-      vaStatus.id="loas"+i;vaStatus.className="file-status";
-      vaStatus.textContent=opt.audioUrl?"✅ Mavjud":"—";
-      vaDiv.appendChild(vaStatus);
-      vCard.appendChild(vaDiv);
+      mkVariantMedia(vc, opt.audioUrl, "audio", i, id, item, function(i2, url){
+        var o=item.options?JSON.parse(JSON.stringify(item.options)):Array(4).fill({});
+        if(!o[i2])o[i2]={};o[i2].audioUrl=url;
+        return db.collection("questions").doc(id).update({options:o});
+      });
 
       // Variant rasmi
-      var viDiv=document.createElement("div");viDiv.className="vfield";
-      var viLabel=document.createElement("label");viLabel.textContent="Rasm";
-      viDiv.appendChild(viLabel);
-      if(opt.imageUrl){
-        var viImg=document.createElement("img");
-        viImg.src=opt.imageUrl;
-        viImg.style.cssText="max-width:100%;max-height:100px;border-radius:6px;display:block;margin-bottom:4px";
-        viDiv.appendChild(viImg);
-        var viDelBtn=document.createElement("button");
-        viDelBtn.style.cssText="font-size:10px;padding:3px 8px;border-radius:5px;border:1px solid var(--red);background:transparent;color:var(--red);cursor:pointer;margin-bottom:4px;display:block";
-        viDelBtn.textContent="🗑 O'chirish";
-        viDelBtn.onclick=(function(idx,btn,img2){return function(){
-          if(confirm("Rasmni o'chirasizmi?")){
-            var opts2=item.options?JSON.parse(JSON.stringify(item.options)):[];
-            if(opts2[idx])opts2[idx].imageUrl=null;
-            db.collection("questions").doc(id).update({options:opts2})
-              .then(function(){img2.remove();btn.remove();showFS("lois"+idx,"—",false);});
-          }
-        }})(i,viDelBtn,viImg);
-        viDiv.appendChild(viDelBtn);
-      } else {
-        var viNo=document.createElement("div");
-        viNo.style.cssText="font-size:11px;color:var(--muted);margin-bottom:4px";
-        viNo.textContent="Rasm yo'q";
-        viDiv.appendChild(viNo);
-      }
-      var viUp=document.createElement("label");viUp.className="upload-btn";
-      viUp.style.cssText="font-size:11px;margin-top:2px";
-      viUp.textContent=opt.imageUrl?"🖼 Almashtir":"🖼 Qo'shish";
-      var viIn=document.createElement("input");viIn.type="file";viIn.accept="image/*";
-      viIn.onchange=(function(idx){return function(){
-        if(!this.files[0])return;
-        newFiles.optImg[idx]=this.files[0];
-        showFS("lois"+idx,"✅ "+this.files[0].name,true);
-      }})(i);
-      viUp.appendChild(viIn);viDiv.appendChild(viUp);
-      var viStatus=document.createElement("span");
-      viStatus.id="lois"+i;viStatus.className="file-status";
-      viStatus.textContent=opt.imageUrl?"✅ Mavjud":"—";
-      viDiv.appendChild(viStatus);
-      vCard.appendChild(viDiv);
+      mkVariantMedia(vc, opt.imageUrl, "image", i, id, item, function(i2, url){
+        var o=item.options?JSON.parse(JSON.stringify(item.options)):Array(4).fill({});
+        if(!o[i2])o[i2]={};o[i2].imageUrl=url;
+        return db.collection("questions").doc(id).update({options:o});
+      });
 
-      vGrid.appendChild(vCard);
+      vGrid.appendChild(vc);
     })(vi);
   }
   ep.appendChild(vGrid);
 
-  // ══ STATUS VA SAQLASH ══
-  var divider=document.createElement("hr");
-  divider.className="divider";divider.style.marginTop="16px";
-  ep.appendChild(divider);
-
+  // ── Saqlash ──
+  var saveLine=document.createElement("div");
+  saveLine.style.cssText="margin-top:16px;padding-top:12px;border-top:1px solid var(--border)";
   var saveStatus=document.createElement("div");
-  saveStatus.id="less";saveStatus.className="status";
-  ep.appendChild(saveStatus);
-
+  saveStatus.id="less";saveStatus.className="status";saveLine.appendChild(saveStatus);
   var saveBtn=document.createElement("button");
   saveBtn.className="btn btn-green";
-  saveBtn.style.cssText="width:100%;margin-top:12px;padding:12px;font-size:14px";
-  saveBtn.textContent="💾 Saqlash";
-  saveBtn.onclick=function(){saveLastEdit(id)};
-  ep.appendChild(saveBtn);
+  saveBtn.style.cssText="width:100%;padding:12px;margin-top:8px;font-size:14px";
+  saveBtn.textContent="💾 Matnlarni saqlash";
+  saveBtn.onclick=function(){saveLast(id,item)};
+  saveLine.appendChild(saveBtn);ep.appendChild(saveLine);
+}
+
+function mkVariantMedia(container, url, type, idx, docId, item, updateFn){
+  var d=document.createElement("div");d.className="vfield";
+  var l=document.createElement("label");l.textContent=type==="audio"?"Audio":"Rasm";d.appendChild(l);
+  if(url){
+    if(type==="audio"){
+      var p=document.createElement("audio");p.controls=true;
+      p.style.cssText="width:100%;height:30px;display:block;margin-bottom:4px";
+      p.innerHTML="<source src='"+url+"'>";d.appendChild(p);
+    } else {
+      var img=document.createElement("img");img.src=url;
+      img.style.cssText="max-width:100%;max-height:90px;border-radius:6px;display:block;margin-bottom:4px;border:1px solid var(--border)";
+      d.appendChild(img);
+    }
+    var db2=document.createElement("button");
+    db2.style.cssText="font-size:10px;padding:2px 8px;border-radius:5px;border:1px solid var(--red);background:transparent;color:var(--red);cursor:pointer;margin-bottom:4px;display:block";
+    db2.textContent="🗑 O'chirish";
+    db2.onclick=(function(i2){return function(){
+      if(!confirm("O'chirasizmi?"))return;
+      updateFn(i2,null).then(function(){selectLastQ(docId)});
+    }})(idx);
+    d.appendChild(db2);
+  } else {
+    var no=document.createElement("div");no.style.cssText="font-size:11px;color:var(--muted);margin-bottom:4px";
+    no.textContent=type==="audio"?"Audio yo'q":"Rasm yo'q";d.appendChild(no);
+  }
+  var ul=document.createElement("label");ul.className="upload-btn";ul.style.fontSize="11px";
+  ul.textContent=url?(type==="audio"?"🎧 Almashtir":"🖼 Almashtir"):(type==="audio"?"🎧 Qo'shish":"🖼 Qo'shish");
+  var ui=document.createElement("input");ui.type="file";ui.accept=type==="audio"?"audio/*":"image/*";
+  ui.onchange=(function(i2){return function(){
+    if(!this.files[0])return;
+    var file=this.files[0];
+    var ext=file.name.split(".").pop()||"bin";
+    var path=(type==="audio"?"audio":"images")+"/"+Date.now()+"_"+Math.random().toString(36).substring(2,8)+"."+ext;
+    ul.textContent="⏳...";
+    storage.ref(path).put(file).then(function(s){return s.ref.getDownloadURL();})
+      .then(function(dlUrl){return updateFn(i2,dlUrl);})
+      .then(function(){setTimeout(function(){selectLastQ(docId)},500);})
+      .catch(function(e){ul.textContent="❌";});
+  }})(idx);
+  ul.appendChild(ui);d.appendChild(ul);
+  container.appendChild(d);
+}
+
+async function saveLast(id, item){
+  var st=document.getElementById("less");
+  if(st){st.textContent="⏳ Saqlanmoqda...";st.className="status loading";}
+  var update={};
+  update.purpose=document.getElementById("leP").value.trim()||null;
+  update.questionText=document.getElementById("leQ").value.trim()||null;
+  update.correctIndex=parseInt(document.getElementById("leCorrect").value);
+  var opts=item.options?JSON.parse(JSON.stringify(item.options)):Array(4).fill({});
+  for(var i=0;i<4;i++){
+    if(!opts[i])opts[i]={};
+    var t=document.getElementById("leO"+i);
+    if(t)opts[i].text=t.value.trim();
+  }
+  update.options=opts;
+  try{
+    await db.collection("questions").doc(id).update(update);
+    if(st){st.textContent="✅ Saqlandi!";st.className="status success";}
+    // Yangilanganini ko'rsatamiz
+    setTimeout(function(){selectLastQ(id)},800);
+  }catch(e){
+    if(st){st.textContent="❌ Xato: "+e.message;st.className="status error";}
+  }
 }
 
 function lmarkCB(i){for(var j=0;j<4;j++){var b=document.getElementById('lob'+j);if(b)b.className='option-box'+(j===i?' correct-box':'')}}
@@ -719,49 +651,6 @@ function onLEF(type,idx,input){
   else if(type==='oi'){newFiles.optImg[idx]=file;showFS('lois'+idx,'🖼 '+file.name,true)}
 }
 function onLEF2(type,idx,input){onLEF(type,idx,input)}
-
-async function saveLastEdit(id){
-  setStatus('less','⏳ Saqlanmoqda...','loading');
-  var item=lastItems.find(function(q){return q._id===id});if(!item)return;
-  var update={};
-  update.purpose=document.getElementById('leP').value.trim()||null;
-  update.questionText=document.getElementById('leQ').value.trim()||null;
-  var ce=document.getElementById('leCorrect');
-  if(ce) update.correctIndex=parseInt(ce.value);
-  if(newFiles.qAudio) update.questionAudioUrl=await uploadFile(newFiles.qAudio,'audio');
-  if(newFiles.qImage) update.questionImageUrl=await uploadFile(newFiles.qImage,'images');
-  if(item.groupId&&(newFiles.qAudio||newFiles.qImage)){
-    lastItems.filter(function(q){return q.groupId===item.groupId&&q._id!==id}).forEach(function(sib){
-      var su={};
-      if(newFiles.qAudio&&update.questionAudioUrl) su.questionAudioUrl=update.questionAudioUrl;
-      if(newFiles.qImage&&update.questionImageUrl) su.questionImageUrl=update.questionImageUrl;
-      if(Object.keys(su).length) db.collection('questions').doc(sib._id).update(su);
-    });
-  }
-  var opts=item.options?JSON.parse(JSON.stringify(item.options)):Array(4).fill({});
-  for(var i=0;i<4;i++){
-    if(!opts[i])opts[i]={};
-    opts[i].text=document.getElementById('leO'+i).value.trim();
-    if(newFiles.opt[i]) opts[i].audioUrl=await uploadFile(newFiles.opt[i],'audio');
-    if(newFiles.optImg[i]) opts[i].imageUrl=await uploadFile(newFiles.optImg[i],'images');
-  }
-  update.options=opts;
-  db.collection('questions').doc(id).update(update)
-    .then(function(){
-      newFiles={qAudio:null,qImage:null,opt:[null,null,null,null],optImg:[null,null,null,null]};
-      // Saqlangandan keyin qayta o'qib ko'rsatamiz
-      selectLastQ(id);
-      // Muvaffaqiyat xabari
-      setTimeout(function(){
-        var st=document.getElementById("less");
-        if(st){st.textContent="✅ Saqlandi!";st.className="status success";}
-      },500);
-    })
-    .catch(function(e){
-      var st=document.getElementById("less");
-      if(st){st.textContent="❌ Xato: "+e.message;st.className="status error";}
-    });
-}
 
 function deleteLastQ(id){
   if(!confirm("Rostdan o'chirasizmi?"))return;
