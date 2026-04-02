@@ -733,7 +733,13 @@ async function saveLastEdit(id){
   }
   update.options=opts;
   db.collection('questions').doc(id).update(update)
-    .then(function(){setStatus('less','✅ Saqlandi!','success');loadLast()})
+    .then(function(){
+      // lastItems dagi item ni yangilaymiz — qayta ochilganda to'g'ri ko'rinsin
+      var idx=lastItems.findIndex(function(q){return q._id===id});
+      if(idx!==-1) Object.assign(lastItems[idx],update);
+      setStatus('less','✅ Saqlandi!','success');
+      newFiles={qAudio:null,qImage:null,opt:[null,null,null,null],optImg:[null,null,null,null]};
+    })
     .catch(function(e){setStatus('less','❌ Xato: '+e.message,'error')});
 }
 
