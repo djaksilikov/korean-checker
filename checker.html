@@ -397,8 +397,18 @@ function selectLastQ(id){
   var selEl=document.getElementById("lq_"+id);
   if(selEl) selEl.classList.add("selected");
 
-  var item=lastItems.find(function(q){return q._id===id});
-  if(!item)return;
+  // Har safar Firebase dan yangi o'qiymiz
+  db.collection("questions").doc(id).get().then(function(doc){
+    if(!doc.exists)return;
+    var item=doc.data();item._id=doc.id;
+    // lastItems ni ham yangilaymiz
+    var idx=lastItems.findIndex(function(q){return q._id===id});
+    if(idx!==-1) lastItems[idx]=item;
+    renderLastEdit(id,item);
+  });
+}
+
+function renderLastEdit(id,item){
   newFiles={qAudio:null,qImage:null,opt:[null,null,null,null],optImg:[null,null,null,null]};
 
   var ep=document.getElementById("lastEditPanel");
