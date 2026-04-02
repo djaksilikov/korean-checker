@@ -256,7 +256,11 @@ function typeBadge(t){return '<span class="badge '+(t==='Listening'?'bl':'bb')+'
 function secBadge(s){return '<span class="badge bp">'+s+'</span>'}
 
 async function uploadFile(file,path){
-  var ref=storage.ref(path);
+  if(!file)return null;
+  // Unique fayl nomi — timestamp + random + kengaytma
+  var ext=file.name.split(".").pop()||"bin";
+  var uid=Date.now()+"_"+Math.random().toString(36).substring(2,8)+"."+ext;
+  var ref=storage.ref(path+"/"+uid);
   await ref.put(file);
   return await ref.getDownloadURL();
 }
@@ -362,8 +366,8 @@ async function saveEdit(id){
   update.questionText=document.getElementById('eQ').value.trim()||null;
   var ce=document.querySelector('input[name="ec"]:checked');
   if(ce) update.correctIndex=parseInt(ce.value);
-  if(newFiles.qAudio) update.questionAudioUrl=await uploadFile(newFiles.qAudio,'audio/'+Date.now());
-  if(newFiles.qImage) update.questionImageUrl=await uploadFile(newFiles.qImage,'images/'+Date.now());
+  if(newFiles.qAudio) update.questionAudioUrl=await uploadFile(newFiles.qAudio,'audio');
+  if(newFiles.qImage) update.questionImageUrl=await uploadFile(newFiles.qImage,'images');
   if(item.groupId&&(newFiles.qAudio||newFiles.qImage)){
     allQuestions.filter(function(q){return q.groupId===item.groupId&&q._id!==id}).forEach(function(sib){
       var su={};
@@ -376,8 +380,8 @@ async function saveEdit(id){
   for(var i=0;i<4;i++){
     if(!opts[i])opts[i]={};
     opts[i].text=document.getElementById('eO'+i).value.trim();
-    if(newFiles.opt[i]) opts[i].audioUrl=await uploadFile(newFiles.opt[i],'audio/'+Date.now());
-    if(newFiles.optImg[i]) opts[i].imageUrl=await uploadFile(newFiles.optImg[i],'images/'+Date.now());
+    if(newFiles.opt[i]) opts[i].audioUrl=await uploadFile(newFiles.opt[i],'audio');
+    if(newFiles.optImg[i]) opts[i].imageUrl=await uploadFile(newFiles.optImg[i],'images');
   }
   update.options=opts;
   db.collection('questions').doc(id).update(update)
@@ -724,8 +728,8 @@ async function saveLastEdit(id){
   update.questionText=document.getElementById('leQ').value.trim()||null;
   var ce=document.getElementById('leCorrect');
   if(ce) update.correctIndex=parseInt(ce.value);
-  if(newFiles.qAudio) update.questionAudioUrl=await uploadFile(newFiles.qAudio,'audio/'+Date.now());
-  if(newFiles.qImage) update.questionImageUrl=await uploadFile(newFiles.qImage,'images/'+Date.now());
+  if(newFiles.qAudio) update.questionAudioUrl=await uploadFile(newFiles.qAudio,'audio');
+  if(newFiles.qImage) update.questionImageUrl=await uploadFile(newFiles.qImage,'images');
   if(item.groupId&&(newFiles.qAudio||newFiles.qImage)){
     lastItems.filter(function(q){return q.groupId===item.groupId&&q._id!==id}).forEach(function(sib){
       var su={};
@@ -738,8 +742,8 @@ async function saveLastEdit(id){
   for(var i=0;i<4;i++){
     if(!opts[i])opts[i]={};
     opts[i].text=document.getElementById('leO'+i).value.trim();
-    if(newFiles.opt[i]) opts[i].audioUrl=await uploadFile(newFiles.opt[i],'audio/'+Date.now());
-    if(newFiles.optImg[i]) opts[i].imageUrl=await uploadFile(newFiles.optImg[i],'images/'+Date.now());
+    if(newFiles.opt[i]) opts[i].audioUrl=await uploadFile(newFiles.opt[i],'audio');
+    if(newFiles.optImg[i]) opts[i].imageUrl=await uploadFile(newFiles.optImg[i],'images');
   }
   update.options=opts;
   db.collection('questions').doc(id).update(update)
