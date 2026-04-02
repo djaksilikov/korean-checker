@@ -734,11 +734,16 @@ async function saveLastEdit(id){
   update.options=opts;
   db.collection('questions').doc(id).update(update)
     .then(function(){
-      // lastItems dagi item ni yangilaymiz — qayta ochilganda to'g'ri ko'rinsin
-      var idx=lastItems.findIndex(function(q){return q._id===id});
-      if(idx!==-1) Object.assign(lastItems[idx],update);
       setStatus('less','✅ Saqlandi!','success');
       newFiles={qAudio:null,qImage:null,opt:[null,null,null,null],optImg:[null,null,null,null]};
+      // Firebase dan yangi ma'lumotni o'qib lastItems ni yangilaymiz
+      db.collection('questions').doc(id).get().then(function(doc){
+        if(doc.exists){
+          var fresh=doc.data();fresh._id=doc.id;
+          var idx=lastItems.findIndex(function(q){return q._id===id});
+          if(idx!==-1) lastItems[idx]=fresh;
+        }
+      });
     })
     .catch(function(e){setStatus('less','❌ Xato: '+e.message,'error')});
 }
