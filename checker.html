@@ -134,8 +134,18 @@ tr:hover td{background:var(--surface2)}
 <!-- LAST -->
 <div id="tab-last" class="page">
   <div id="lastStatus" class="status"></div>
-  <div id="lastList" class="q-list"><div class="spinner">⏳ Tab ochilganda yuklanadi</div></div>
-  <div id="lastEditPanel" style="display:none"></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
+    <div>
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:10px;font-family:'IBM Plex Mono',monospace">So'nggi 50 ta savol</div>
+      <div id="lastList" class="q-list"><div class="spinner">⏳ Tab ochilganda yuklanadi</div></div>
+    </div>
+    <div>
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:10px;font-family:'IBM Plex Mono',monospace">Tahrirlash</div>
+      <div id="lastEditPanel" style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px">
+        <div style="color:var(--muted);font-size:13px;text-align:center;padding:40px 0">Chap tomondagi savolni bosing</div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- STATS -->
@@ -382,164 +392,266 @@ function deleteQ(id){
 }
 
 function selectLastQ(id){
+  // Ro'yxatda selected
   document.querySelectorAll("#lastList .q-item").forEach(function(el){el.classList.remove("selected")});
-  var sel=document.getElementById("lq_"+id);
-  if(sel) sel.classList.add("selected");
+  var selEl=document.getElementById("lq_"+id);
+  if(selEl) selEl.classList.add("selected");
+
   var item=lastItems.find(function(q){return q._id===id});
   if(!item)return;
   newFiles={qAudio:null,qImage:null,opt:[null,null,null,null],optImg:[null,null,null,null]};
-  var opts=item.options||[];
+
   var ep=document.getElementById("lastEditPanel");
-  ep.style.display="block";
   ep.innerHTML="";
 
-  var panel=document.createElement("div");
-  panel.className="edit-panel";
-
-  // Sarlavha
-  var titleDiv=document.createElement("div");
-  titleDiv.className="edit-title";
-  titleDiv.innerHTML="<span>Tahrirlash</span>";
-  var delBtn=document.createElement("button");
-  delBtn.className="btn btn-red";
-  delBtn.textContent="O'chirish";
-  delBtn.onclick=function(){deleteLastQ(id)};
-  titleDiv.appendChild(delBtn);
-  panel.appendChild(titleDiv);
+  // ══ SARLAVHA ══
+  var hdr=document.createElement("div");
+  hdr.style.cssText="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px";
+  hdr.innerHTML="<span style='font-size:14px;font-weight:800'>✏️ Tahrirlash</span>";
+  var dBtn=document.createElement("button");
+  dBtn.className="btn btn-red";
+  dBtn.textContent="🗑 O'chirish";
+  dBtn.style.fontSize="12px";
+  dBtn.onclick=function(){
+    if(confirm("Rostdan ochirasizmi?")){
+      db.collection("questions").doc(id).delete().then(function(){
+        ep.innerHTML="<div style='color:var(--muted);font-size:13px;text-align:center;padding:40px 0'>Savol ochirildi</div>";
+        loadLast();
+      });
+    }
+  };
+  hdr.appendChild(dBtn);
+  ep.appendChild(hdr);
 
   // Guruh info
   if(item.groupId){
     var gi=document.createElement("div");
     gi.className="group-info";
-    gi.textContent="Guruh: "+item.groupId+" | Tartib: "+item.groupOrder;
-    panel.appendChild(gi);
+    gi.textContent="🔗 Guruh: "+item.groupId+" | Tartib: "+item.groupOrder;
+    ep.appendChild(gi);
   }
 
-  // Maqsad
-  var f1=document.createElement("div");f1.className="field";
-  f1.innerHTML="<label>Savol maqsadi</label><textarea id='leP'></textarea>";
-  panel.appendChild(f1);
-  panel.querySelector("#leP").value=item.purpose||"";
+  // ══ MATN MAYDONLARI ══
+  function addField(label,id,val){
+    var f=document.createElement("div");f.className="field";
+    var l=document.createElement("label");l.textContent=label;
+    var ta=document.createElement("textarea");
+    ta.id=id;ta.value=val||"";
+    f.appendChild(l);f.appendChild(ta);
+    ep.appendChild(f);
+  }
+  addField("Savol maqsadi","leP",item.purpose);
+  addField("Savol matni","leQ",item.questionText);
 
-  // Savol matni
-  var f2=document.createElement("div");f2.className="field";
-  f2.innerHTML="<label>Savol matni</label><textarea id='leQ'></textarea>";
-  panel.appendChild(f2);
-  panel.querySelector("#leQ").value=item.questionText||"";
-
-  // Savol audio
-  var f3=document.createElement("div");f3.className="field";
-  var audioHtml="<label>Savol audiosi</label>";
+  // ══ SAVOL AUDIO ══
+  var aDiv=document.createElement("div");aDiv.className="field";
+  var aLabel=document.createElement("label");aLabel.textContent="Savol audiosi";
+  aDiv.appendChild(aLabel);
   if(item.questionAudioUrl){
-    audioHtml+="<audio controls style='width:100%;height:36px;margin-bottom:6px;display:block'><source src='"+item.questionAudioUrl+"'></audio>";
+    var aPlayer=document.createElement("audio");
+    aPlayer.controls=true;
+    aPlayer.style.cssText="width:100%;height:36px;margin-bottom:8px;display:block";
+    var aSource=document.createElement("source");
+    aSource.src=item.questionAudioUrl;
+    aPlayer.appendChild(aSource);
+    aDiv.appendChild(aPlayer);
+    var aLink=document.createElement("a");
+    aLink.href=item.questionAudioUrl;aLink.target="_blank";
+    aLink.style.cssText="font-size:11px;color:var(--accent);display:block;margin-bottom:6px;font-family:'IBM Plex Mono',monospace";
+    aLink.textContent="🔗 Audio URL";
+    aDiv.appendChild(aLink);
   } else {
-    audioHtml+="<div style='font-size:12px;color:var(--muted);margin-bottom:6px'>Audio yoq</div>";
+    var noA=document.createElement("div");
+    noA.style.cssText="font-size:12px;color:var(--muted);margin-bottom:6px";
+    noA.textContent="Audio yo'q";
+    aDiv.appendChild(noA);
   }
-  audioHtml+="<label class='upload-btn'>Audio qoshish/almashtirish<input type='file' id='leqAudio' accept='audio/*'></label>";
-  audioHtml+="<span class='file-status' id='leqas'>"+(item.questionAudioUrl?"Mavjud":"—")+"</span>";
-  f3.innerHTML=audioHtml;
-  panel.appendChild(f3);
-  panel.querySelector("#leqAudio").addEventListener("change",function(){
+  var aUpload=document.createElement("label");
+  aUpload.className="upload-btn";
+  aUpload.style.marginTop="4px";
+  aUpload.textContent=item.questionAudioUrl?"🎧 Almashtirish":"🎧 Audio qo'shish";
+  var aInput=document.createElement("input");
+  aInput.type="file";aInput.accept="audio/*";
+  aInput.onchange=function(){
+    if(!this.files[0])return;
     newFiles.qAudio=this.files[0];
-    showFS("leqas","Audio: "+this.files[0].name,true);
-  });
+    showFS("leqas","✅ "+this.files[0].name,true);
+  };
+  aUpload.appendChild(aInput);
+  aDiv.appendChild(aUpload);
+  var aStatus=document.createElement("span");
+  aStatus.id="leqas";aStatus.className="file-status has-file";
+  aStatus.textContent=item.questionAudioUrl?"✅ Mavjud":"—";
+  aDiv.appendChild(aStatus);
+  ep.appendChild(aDiv);
 
-  // Savol rasmi
-  var f4=document.createElement("div");f4.className="field";
-  var imgHtml="<label>Savol rasmi</label>";
+  // ══ SAVOL RASMI ══
+  var iDiv=document.createElement("div");iDiv.className="field";
+  var iLabel=document.createElement("label");iLabel.textContent="Savol rasmi";
+  iDiv.appendChild(iLabel);
   if(item.questionImageUrl){
-    imgHtml+="<img src='"+item.questionImageUrl+"' style='max-height:120px;border-radius:8px;display:block;margin-bottom:6px'>";
+    var img=document.createElement("img");
+    img.src=item.questionImageUrl;
+    img.style.cssText="max-width:100%;max-height:200px;border-radius:8px;display:block;margin-bottom:8px;border:1px solid var(--border)";
+    iDiv.appendChild(img);
   } else {
-    imgHtml+="<div style='font-size:12px;color:var(--muted);margin-bottom:6px'>Rasm yoq</div>";
+    var noI=document.createElement("div");
+    noI.style.cssText="font-size:12px;color:var(--muted);margin-bottom:6px";
+    noI.textContent="Rasm yo'q";
+    iDiv.appendChild(noI);
   }
-  imgHtml+="<label class='upload-btn'>Rasm qoshish/almashtirish<input type='file' id='leqImage' accept='image/*'></label>";
-  imgHtml+="<span class='file-status' id='leqis'>"+(item.questionImageUrl?"Mavjud":"—")+"</span>";
-  f4.innerHTML=imgHtml;
-  panel.appendChild(f4);
-  panel.querySelector("#leqImage").addEventListener("change",function(){
+  var iUpload=document.createElement("label");
+  iUpload.className="upload-btn";
+  iUpload.style.marginTop="4px";
+  iUpload.textContent=item.questionImageUrl?"🖼 Almashtirish":"🖼 Rasm qo'shish";
+  var iInput=document.createElement("input");
+  iInput.type="file";iInput.accept="image/*";
+  iInput.onchange=function(){
+    if(!this.files[0])return;
     newFiles.qImage=this.files[0];
-    showFS("leqis","Rasm: "+this.files[0].name,true);
+    showFS("leqis","✅ "+this.files[0].name,true);
+    var reader=new FileReader();
+    reader.onload=function(e){img&&(img.src=e.target.result)};
+    reader.readAsDataURL(this.files[0]);
+  };
+  iUpload.appendChild(iInput);
+  iDiv.appendChild(iUpload);
+  var iStatus=document.createElement("span");
+  iStatus.id="leqis";iStatus.className="file-status has-file";
+  iStatus.textContent=item.questionImageUrl?"✅ Mavjud":"—";
+  iDiv.appendChild(iStatus);
+  ep.appendChild(iDiv);
+
+  // ══ TO'G'RI JAVOB ══
+  var cDiv=document.createElement("div");cDiv.className="field";
+  var cLabel=document.createElement("label");cLabel.textContent="To'g'ri javob";
+  var cSel=document.createElement("select");cSel.id="leCorrect";
+  ["1-variant","2-variant","3-variant","4-variant"].forEach(function(t,i){
+    var o=document.createElement("option");o.value=i;o.textContent=["①","②","③","④"][i]+" "+t;
+    if(i===item.correctIndex)o.selected=true;
+    cSel.appendChild(o);
   });
+  cDiv.appendChild(cLabel);cDiv.appendChild(cSel);
+  ep.appendChild(cDiv);
 
-  // Variantlar
-  var og=document.createElement("div");og.className="options-grid";
-  for(var i=0;i<4;i++){
-    var opt=opts[i]||{};
-    var isC=item.correctIndex===i;
-    var ob=document.createElement("div");
-    ob.className="option-box"+(isC?" correct-box":"");
-    ob.id="lob"+i;
+  // ══ VARIANTLAR ══
+  var vTitle=document.createElement("div");
+  vTitle.style.cssText="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;margin:16px 0 10px;font-family:'IBM Plex Mono',monospace";
+  vTitle.textContent="VARIANTLAR";
+  ep.appendChild(vTitle);
 
-    var oLbl=["①","②","③","④"][i];
-    var oText=opt.text||"";
-    var oHasAudio=!!opt.audioUrl;
-    var oHasImg=!!opt.imageUrl;
+  var opts=item.options||[];
+  var vGrid=document.createElement("div");
+  vGrid.className="options-grid";
 
-    var inner="<div class='option-label'>"+oLbl+
-      "<label class='correct-radio'><input type='radio' name='lec' value='"+i+"'"+(isC?" checked":"")+"> To'g'ri</label></div>"+
-      "<textarea id='leO"+i+"' style='min-height:44px'>"+oText+"</textarea>";
+  for(var vi=0;vi<4;vi++){
+    (function(i){
+      var opt=opts[i]||{};
+      var isC=item.correctIndex===i;
+      var vCard=document.createElement("div");
+      vCard.className="vcard"+(isC?" correct-selected":"");
+      vCard.id="lvcard"+i;
 
-    // Audio
-    inner+="<div style='margin-top:6px'>";
-    if(oHasAudio){
-      inner+="<audio controls style='width:100%;height:32px;margin-bottom:4px'><source src='"+opt.audioUrl+"'></audio>";
-    } else {
-      inner+="<div style='font-size:11px;color:var(--muted);margin-bottom:4px'>Audio yoq</div>";
-    }
-    inner+="<label class='upload-btn' style='font-size:11px'>Audio<input type='file' id='loaFile"+i+"' accept='audio/*'></label>";
-    inner+="<span class='file-status' id='loas"+i+"'>"+(oHasAudio?"Mavjud":"—")+"</span></div>";
+      // Variant sarlavha
+      var vHdr=document.createElement("div");vHdr.className="vcard-header";
+      var vNum=document.createElement("span");vNum.className="vnum";vNum.textContent="VARIANT "+(i+1);
+      vHdr.appendChild(vNum);
+      vCard.appendChild(vHdr);
 
-    // Rasm
-    inner+="<div style='margin-top:6px'>";
-    if(oHasImg){
-      inner+="<img src='"+opt.imageUrl+"' style='max-height:70px;border-radius:6px;display:block;margin-bottom:4px'>";
-    } else {
-      inner+="<div style='font-size:11px;color:var(--muted);margin-bottom:4px'>Rasm yoq</div>";
-    }
-    inner+="<label class='upload-btn' style='font-size:11px'>Rasm<input type='file' id='loiFile"+i+"' accept='image/*'></label>";
-    inner+="<span class='file-status' id='lois"+i+"'>"+(oHasImg?"Mavjud":"—")+"</span></div>";
+      // Variant matni
+      var vf=document.createElement("div");vf.className="vfield";
+      var vfl=document.createElement("label");vfl.textContent="Matn";
+      var vta=document.createElement("textarea");
+      vta.id="leO"+i;vta.value=opt.text||"";vta.style.minHeight="44px";
+      vf.appendChild(vfl);vf.appendChild(vta);
+      vCard.appendChild(vf);
 
-    ob.innerHTML=inner;
-    og.appendChild(ob);
-  }
-  panel.appendChild(og);
-
-  // Radio listeners
-  panel.querySelectorAll("input[name='lec']").forEach(function(r){
-    r.addEventListener("change",function(){lmarkCB(parseInt(this.value))});
-  });
-
-  // Variant file listeners
-  for(var j=0;j<4;j++){
-    (function(idx){
-      var aEl=panel.querySelector("#loaFile"+idx);
-      if(aEl) aEl.addEventListener("change",function(){
+      // Variant audio
+      var vaDiv=document.createElement("div");vaDiv.className="vfield";
+      var vaLabel=document.createElement("label");vaLabel.textContent="Audio";
+      vaDiv.appendChild(vaLabel);
+      if(opt.audioUrl){
+        var vaPlayer=document.createElement("audio");
+        vaPlayer.controls=true;
+        vaPlayer.style.cssText="width:100%;height:30px;margin-bottom:4px;display:block";
+        var vaSource=document.createElement("source");vaSource.src=opt.audioUrl;
+        vaPlayer.appendChild(vaSource);
+        vaDiv.appendChild(vaPlayer);
+      } else {
+        var vaNo=document.createElement("div");
+        vaNo.style.cssText="font-size:11px;color:var(--muted);margin-bottom:4px";
+        vaNo.textContent="Audio yo'q";
+        vaDiv.appendChild(vaNo);
+      }
+      var vaUp=document.createElement("label");vaUp.className="upload-btn";
+      vaUp.style.cssText="font-size:11px;margin-top:2px";
+      vaUp.textContent=opt.audioUrl?"🎧 Almashtir":"🎧 Qo'shish";
+      var vaIn=document.createElement("input");vaIn.type="file";vaIn.accept="audio/*";
+      vaIn.onchange=(function(idx){return function(){
+        if(!this.files[0])return;
         newFiles.opt[idx]=this.files[0];
-        showFS("loas"+idx,"Audio: "+this.files[0].name,true);
-      });
-      var iEl=panel.querySelector("#loiFile"+idx);
-      if(iEl) iEl.addEventListener("change",function(){
-        newFiles.optImg[idx]=this.files[0];
-        showFS("lois"+idx,"Rasm: "+this.files[0].name,true);
-      });
-    })(j);
-  }
+        showFS("loas"+idx,"✅ "+this.files[0].name,true);
+      }})(i);
+      vaUp.appendChild(vaIn);vaDiv.appendChild(vaUp);
+      var vaStatus=document.createElement("span");
+      vaStatus.id="loas"+i;vaStatus.className="file-status";
+      vaStatus.textContent=opt.audioUrl?"✅ Mavjud":"—";
+      vaDiv.appendChild(vaStatus);
+      vCard.appendChild(vaDiv);
 
-  // Status va saqlash
-  var statusDiv=document.createElement("div");
-  statusDiv.id="less";statusDiv.className="status";statusDiv.style.marginTop="12px";
-  panel.appendChild(statusDiv);
+      // Variant rasmi
+      var viDiv=document.createElement("div");viDiv.className="vfield";
+      var viLabel=document.createElement("label");viLabel.textContent="Rasm";
+      viDiv.appendChild(viLabel);
+      if(opt.imageUrl){
+        var viImg=document.createElement("img");
+        viImg.src=opt.imageUrl;
+        viImg.style.cssText="max-width:100%;max-height:100px;border-radius:6px;display:block;margin-bottom:4px";
+        viDiv.appendChild(viImg);
+      } else {
+        var viNo=document.createElement("div");
+        viNo.style.cssText="font-size:11px;color:var(--muted);margin-bottom:4px";
+        viNo.textContent="Rasm yo'q";
+        viDiv.appendChild(viNo);
+      }
+      var viUp=document.createElement("label");viUp.className="upload-btn";
+      viUp.style.cssText="font-size:11px;margin-top:2px";
+      viUp.textContent=opt.imageUrl?"🖼 Almashtir":"🖼 Qo'shish";
+      var viIn=document.createElement("input");viIn.type="file";viIn.accept="image/*";
+      viIn.onchange=(function(idx){return function(){
+        if(!this.files[0])return;
+        newFiles.optImg[idx]=this.files[0];
+        showFS("lois"+idx,"✅ "+this.files[0].name,true);
+      }})(i);
+      viUp.appendChild(viIn);viDiv.appendChild(viUp);
+      var viStatus=document.createElement("span");
+      viStatus.id="lois"+i;viStatus.className="file-status";
+      viStatus.textContent=opt.imageUrl?"✅ Mavjud":"—";
+      viDiv.appendChild(viStatus);
+      vCard.appendChild(viDiv);
+
+      vGrid.appendChild(vCard);
+    })(vi);
+  }
+  ep.appendChild(vGrid);
+
+  // ══ STATUS VA SAQLASH ══
+  var divider=document.createElement("hr");
+  divider.className="divider";divider.style.marginTop="16px";
+  ep.appendChild(divider);
+
+  var saveStatus=document.createElement("div");
+  saveStatus.id="less";saveStatus.className="status";
+  ep.appendChild(saveStatus);
 
   var saveBtn=document.createElement("button");
   saveBtn.className="btn btn-green";
-  saveBtn.style.cssText="margin-top:12px;width:100%";
-  saveBtn.textContent="Saqlash";
+  saveBtn.style.cssText="width:100%;margin-top:12px;padding:12px;font-size:14px";
+  saveBtn.textContent="💾 Saqlash";
   saveBtn.onclick=function(){saveLastEdit(id)};
-  panel.appendChild(saveBtn);
-
-  ep.appendChild(panel);
-  ep.scrollIntoView({behavior:"smooth",block:"nearest"});
+  ep.appendChild(saveBtn);
 }
+
 function lmarkCB(i){for(var j=0;j<4;j++){var b=document.getElementById('lob'+j);if(b)b.className='option-box'+(j===i?' correct-box':'')}}
 
 function onLEF(type,idx,input){
@@ -557,7 +669,7 @@ async function saveLastEdit(id){
   var update={};
   update.purpose=document.getElementById('leP').value.trim()||null;
   update.questionText=document.getElementById('leQ').value.trim()||null;
-  var ce=document.querySelector('input[name="lec"]:checked');
+  var ce=document.getElementById('leCorrect');
   if(ce) update.correctIndex=parseInt(ce.value);
   if(newFiles.qAudio) update.questionAudioUrl=await uploadFile(newFiles.qAudio,'audio/'+Date.now());
   if(newFiles.qImage) update.questionImageUrl=await uploadFile(newFiles.qImage,'images/'+Date.now());
