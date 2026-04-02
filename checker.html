@@ -724,38 +724,34 @@ function loadLast(){
     el.innerHTML=sorted.map(function(item){
       var ig=!!item.groupId;var ord=item.groupOrder||1;
       var cls='q-item'+(ig?(ord===1?' group-first':' group-other'):'');
-      return '<div class="'+cls+'" id="lq_'+item._id+'" data-qid="'+item._id+'">'+
+      return '<div class="'+cls+'" id="lq_'+item._id+'">'+
         '<div class="q-meta" style="justify-content:space-between;align-items:center">'+
         '<div style="display:flex;gap:6px;flex-wrap:wrap">'+
         secBadge(item.section)+typeBadge(item.testType||'Reading')+diffBadge(item.difficulty||'Easy')+
         (ig?'<span class="badge bb">🔗 '+ord+'/2</span>':'')+
         '</div>'+
-        '<button data-qid="'+item._id+'" class="last-edit-btn" style="padding:3px 10px;border-radius:6px;border:1.5px solid var(--accent);background:transparent;color:var(--accent);font-size:11px;cursor:pointer;font-family:Sora,sans-serif;font-weight:700">✏️ Tahrir</button>'+
+        '<button class="last-edit-btn" data-id="'+item._id+'" style="padding:3px 10px;border-radius:6px;border:1.5px solid var(--accent);background:transparent;color:var(--accent);font-size:11px;cursor:pointer;font-family:Sora,sans-serif;font-weight:700">✏️ Tahrir</button>'+
         '</div>'+
         '<div class="q-purpose">'+(item.purpose||item.questionText||'—')+'</div>'+
         '</div>';
     }).join('');
-  }).catch(function(e){el.innerHTML='<div class="spinner">❌ '+e.message+'</div>'});
 
-  // Event listenerlarni qo'shamiz — inline onclick o'rniga
-  setTimeout(function(){
-    document.querySelectorAll('#lastList [data-qid]').forEach(function(el){
-      // Qator bosilganda
-      if(!el.classList.contains('last-edit-btn')){
-        el.addEventListener('click',function(e){
-          if(e.target.classList.contains('last-edit-btn')) return;
-          selectLastQ(this.getAttribute('data-qid'));
-        });
-      }
-      // Tahrir tugmasi bosilganda
-      if(el.classList.contains('last-edit-btn')){
-        el.addEventListener('click',function(e){
-          e.stopPropagation();
-          selectLastQ(this.getAttribute('data-qid'));
-        });
-      }
+    // Event listenerlar — HTML yuklanganidan keyin darhol
+    el.querySelectorAll('.last-edit-btn').forEach(function(btn){
+      btn.addEventListener('click',function(e){
+        e.stopPropagation();
+        selectLastQ(this.getAttribute('data-id'));
+      });
     });
-  },100);
+    el.querySelectorAll('.q-item').forEach(function(card){
+      card.addEventListener('click',function(e){
+        if(e.target.classList.contains('last-edit-btn'))return;
+        var btn=this.querySelector('.last-edit-btn');
+        if(btn) selectLastQ(btn.getAttribute('data-id'));
+      });
+    });
+
+  }).catch(function(e){el.innerHTML='<div class="spinner">❌ '+e.message+'</div>'});
 }
 
 // ── STATS ──
