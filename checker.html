@@ -143,6 +143,12 @@ tr:hover td{background:var(--surface2)}
   <div id="statsStatus" class="status"></div>
   <div style="margin-bottom:16px"><button class="btn btn-blue" onclick="loadStats()">📊 Yuklash</button></div>
   <div id="statsResult"></div>
+
+  <div style="margin-top:20px">
+    <button class="btn btn-blue" onclick="findDuplicates()" style="margin-bottom:12px">🔍 Bir xil rasmi/audiosi bor savollarni top</button>
+    <div id="dupStatus" style="font-size:12px;color:var(--muted);margin-bottom:8px;font-family:'IBM Plex Mono',monospace"></div>
+    <div id="dupList"></div>
+  </div>
 </div>
 
 <!-- LEADERBOARD -->
