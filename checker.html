@@ -1,4 +1,3 @@
-Mana, so'ralganidek, kodning to'liq varianti. Faqat loadLast funksiyasidagi chegara 50 dan 100 ga o'zgartirildi va vizual ko'rinish uchun sarlavhadagi yozuv ham yangilandi:
 <!DOCTYPE html>
 <html lang="uz">
 <head>
@@ -135,7 +134,17 @@ tr:hover td{background:var(--surface2)}
   <div id="lastStatus" class="status"></div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
     <div>
-      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:10px;font-family:'IBM Plex Mono',monospace">So'nggi 100 ta savol</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;font-family:'IBM Plex Mono',monospace">So'nggi savollar</div>
+        <select id="lastLimit" onchange="loadLast()" style="width:auto;padding:4px 8px;font-size:11px;font-family:'IBM Plex Mono',monospace;height:auto;border-radius:6px">
+          <option value="25">25 ta</option>
+          <option value="50">50 ta</option>
+          <option value="100" selected>100 ta</option>
+          <option value="200">200 ta</option>
+          <option value="300">300 ta</option>
+          <option value="400">400 ta</option>
+        </select>
+      </div>
       <div id="lastList" class="q-list"><div class="spinner">⏳ Tab ochilganda yuklanadi</div></div>
     </div>
     <div>
@@ -605,9 +614,10 @@ async function saveLast(id, item){
 // ── LAST ──
 function loadLast(){
   var el=document.getElementById('lastList');
+  var limit=parseInt(document.getElementById('lastLimit').value) || 100;
   el.innerHTML='<div class="spinner">⏳ Yuklanmoqda...</div>';
-  // LIMIT 100 QILINDI
-  db.collection('questions').orderBy('createdAt','desc').limit(100).get().then(function(snap){
+  
+  db.collection('questions').orderBy('createdAt','desc').limit(limit).get().then(function(snap){
     if(snap.empty){el.innerHTML='<div class="spinner">Bo\'sh</div>';return}
     var items=snap.docs.map(function(d){var data=d.data();data._id=d.id;return data});
     var sorted=[];var seen={};
@@ -879,4 +889,3 @@ window.onload=function(){
 </script>
 </body>
 </html>
-
