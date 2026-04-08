@@ -4,7 +4,7 @@
     <div>
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
         <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;font-family:'IBM Plex Mono',monospace">So'nggi savollar</div>
-        <select id="lastLimit" onchange="loadLast()" style="width:auto; padding:4px 8px; font-size:11px; height:auto;">
+        <select id="lastLimit" onchange="loadLast()" style="width:auto; padding:2px 5px; font-size:11px; height:auto; min-width:80px;">
           <option value="50">50 ta</option>
           <option value="100">100 ta</option>
           <option value="200">200 ta</option>
@@ -15,22 +15,25 @@
       </div>
       <div id="lastList" class="q-list"><div class="spinner">⏳ Tab ochilganda yuklanadi</div></div>
     </div>
-    ```
+    <div>
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:10px;font-family:'IBM Plex Mono',monospace">Tahrirlash</div>
+      <div id="lastEditPanel" style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px">
+        <div style="color:var(--muted);font-size:13px;text-align:center;padding:40px 0">Chap tomondagi savolni bosing</div>
+      </div>
+    </div>
+  </div>
+</div>
 
-### 2. JavaScript qismidagi o'zgarish (`loadLast` funksiyasi)
-Bu funksiya endi tanlangan limitni hisobga oladi:
-
-```javascript
-// ── LAST ──
+<script>
+// Yangilangan loadLast funksiyasi
 function loadLast(){
   var el=document.getElementById('lastList');
-  var limitVal = parseInt(document.getElementById('lastLimit').value) || 50; // Limitni olish
+  // Tanlangan limitni olish (agar topilmasa 50)
+  var limitSelect = document.getElementById('lastLimit');
+  var limitVal = limitSelect ? parseInt(limitSelect.value) : 50;
+
   el.innerHTML='<div class="spinner">⏳ Yuklanmoqda...</div>';
-  
-  db.collection('questions')
-    .orderBy('createdAt','desc')
-    .limit(limitVal) // Dinamik limit
-    .get().then(function(snap){
+  db.collection('questions').orderBy('createdAt','desc').limit(limitVal).get().then(function(snap){
     if(snap.empty){el.innerHTML='<div class="spinner">Bo\'sh</div>';return}
     var items=snap.docs.map(function(d){var data=d.data();data._id=d.id;return data});
     var sorted=[];var seen={};
@@ -60,7 +63,6 @@ function loadLast(){
         '</div>';
     }).join('');
 
-    // Event listenerlar
     el.querySelectorAll('.last-edit-btn').forEach(function(btn){
       btn.addEventListener('click',function(e){
         e.stopPropagation();
@@ -74,6 +76,6 @@ function loadLast(){
         if(btn) selectLastQ(btn.getAttribute('data-id'));
       });
     });
-
   }).catch(function(e){el.innerHTML='<div class="spinner">❌ '+e.message+'</div>'});
 }
+</script>
