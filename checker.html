@@ -131,7 +131,7 @@ tr:hover td{background:var(--surface2)}
     <input id="searchInput" placeholder="Qidirish..." oninput="onSearch()"/>
     <select id="filterSection" onchange="onSearch()">
       <option value="">Barcha bo'lim</option>
-      <option>EPS TOPIK</option><option>TOPIK 1</option><option>TOPIK 2</option>
+      <option>Interactive EPS</option><option>TOPIK 1</option><option>TOPIK 2</option>
     </select>
     <select id="filterType" onchange="onSearch()">
       <option value="">Barcha tur</option>
@@ -201,7 +201,7 @@ tr:hover td{background:var(--surface2)}
     <div class="card-title">🏆 Leaderboard</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
       <select id="lbSection" style="flex:0;min-width:150px">
-        <option value="EPS_TOPIK">📋 EPS TOPIK</option>
+        <option value="EPS_TOPIK">📋 Interactive EPS</option>
         <option value="TOPIK_1">📗 TOPIK 1</option>
         <option value="TOPIK_2">📘 TOPIK 2</option>
       </select>
@@ -777,7 +777,7 @@ function loadStats(){
     function sc(n,l,c){return '<div class="stat-card"><div class="stat-num" style="color:'+c+'">'+n+'</div><div class="stat-lbl">'+l+'</div></div>'}
     var html='<div class="stat-grid">'+
       sc(all.length,'Jami savol','var(--accent)')+
-      sc(byS['EPS TOPIK']||0,'EPS TOPIK','var(--accent2)')+
+      sc(byS['Interactive EPS']||0,'Interactive EPS','var(--accent2)')+
       sc(byS['TOPIK 1']||0,'TOPIK 1','var(--green)')+
       sc(byS['TOPIK 2']||0,'TOPIK 2','var(--yellow)')+
       sc(byT['Listening']||0,'Listening','var(--accent)')+
