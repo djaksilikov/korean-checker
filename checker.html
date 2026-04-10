@@ -88,6 +88,29 @@ tr:hover td{background:var(--surface2)}
 </style>
 </head>
 <body>
+<!-- ══ LOGIN ══ -->
+<div id="loginPage" style="min-height:100vh;background:var(--bg);display:flex;align-items:center;justify-content:center">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:40px;width:100%;max-width:400px;margin:20px">
+    <div style="text-align:center;margin-bottom:28px">
+      <div style="width:56px;height:56px;background:linear-gradient(135deg,#4f8ef7,#7c5cfc);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 14px">🇰🇷</div>
+      <div style="font-size:20px;font-weight:800;color:var(--text)">Korean Test</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:4px;font-family:'IBM Plex Mono',monospace">Manager Panel</div>
+    </div>
+    <div style="margin-bottom:14px">
+      <label style="font-size:11px;color:var(--muted);font-family:'IBM Plex Mono',monospace;display:block;margin-bottom:6px">EMAIL</label>
+      <input id="loginEmail" type="email" placeholder="email@gmail.com" style="width:100%;padding:12px 16px;border-radius:10px;border:1.5px solid var(--border);background:var(--bg);color:var(--text);font-size:14px;outline:none">
+    </div>
+    <div style="margin-bottom:20px">
+      <label style="font-size:11px;color:var(--muted);font-family:'IBM Plex Mono',monospace;display:block;margin-bottom:6px">PAROL</label>
+      <input id="loginPassword" type="password" placeholder="••••••••" style="width:100%;padding:12px 16px;border-radius:10px;border:1.5px solid var(--border);background:var(--bg);color:var(--text);font-size:14px;outline:none">
+    </div>
+    <div id="loginError" style="font-size:12px;color:#e74c3c;margin-bottom:12px;min-height:18px;font-family:'IBM Plex Mono',monospace"></div>
+    <button id="loginBtn" onclick="doLogin()" style="width:100%;padding:14px;border-radius:10px;border:none;background:linear-gradient(135deg,#4f8ef7,#7c5cfc);color:#fff;font-size:14px;font-weight:700;cursor:pointer">
+      🔐 Kirish
+    </button>
+  </div>
+</div>
+<div id="mainContent" style="display:none">
 <header>
   <div class="logo">🇰🇷</div>
   <h1>Savol Boshqaruv Paneli</h1>
@@ -134,9 +157,20 @@ tr:hover td{background:var(--surface2)}
 <!-- LAST -->
 <div id="tab-last" class="page">
   <div id="lastStatus" class="status"></div>
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+    <div style="font-size:12px;color:var(--muted);font-family:'IBM Plex Mono',monospace">Ko'rsatish:</div>
+    <select id="lastLimit" onchange="loadLast()" style="padding:6px 12px;border-radius:8px;border:1.5px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;font-weight:700">
+      <option value="50">50 ta</option>
+      <option value="100">100 ta</option>
+      <option value="200">200 ta</option>
+      <option value="300">300 ta</option>
+      <option value="400">400 ta</option>
+    </select>
+    <div id="lastCount" style="font-size:12px;color:var(--muted);font-family:'IBM Plex Mono',monospace"></div>
+  </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
     <div>
-      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:10px;font-family:'IBM Plex Mono',monospace">So'nggi 50 ta savol</div>
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:10px;font-family:'IBM Plex Mono',monospace">So'nggi savollar</div>
       <div id="lastList" class="q-list"><div class="spinner">⏳ Tab ochilganda yuklanadi</div></div>
     </div>
     <div>
@@ -211,6 +245,7 @@ tr:hover td{background:var(--surface2)}
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 <script>
@@ -675,7 +710,9 @@ function deleteLastQ(id){
 function loadLast(){
   var el=document.getElementById('lastList');
   el.innerHTML='<div class="spinner">⏳ Yuklanmoqda...</div>';
-  db.collection('questions').orderBy('createdAt','desc').limit(50).get().then(function(snap){
+  var limitSel=document.getElementById('lastLimit');
+  var lim=limitSel?parseInt(limitSel.value):50;
+  db.collection('questions').orderBy('createdAt','desc').limit(lim).get().then(function(snap){
     if(snap.empty){el.innerHTML='<div class="spinner">Bo\'sh</div>';return}
     var items=snap.docs.map(function(d){var data=d.data();data._id=d.id;return data});
     var sorted=[];var seen={};
@@ -690,6 +727,8 @@ function loadLast(){
       } else sorted.push(item);
     });
     lastItems=sorted;
+    var lc=document.getElementById('lastCount');
+    if(lc)lc.textContent=sorted.length+' ta savol';
     el.innerHTML=sorted.map(function(item){
       var ig=!!item.groupId;var ord=item.groupOrder||1;
       var cls='q-item'+(ig?(ord===1?' group-first':' group-other'):'');
@@ -948,10 +987,47 @@ function findDuplicates(){
   }).catch(function(e){status.textContent="Xato: "+e.message});
 }
 
+var auth=firebase.auth();
+
+auth.onAuthStateChanged(function(user){
+  var lp=document.getElementById("loginPage");
+  var mc=document.getElementById("mainContent");
+  if(user){
+    if(lp)lp.style.display="none";
+    if(mc)mc.style.display="block";
+  } else {
+    if(lp)lp.style.display="flex";
+    if(mc)mc.style.display="none";
+  }
+});
+
+function doLogin(){
+  var email=document.getElementById("loginEmail").value.trim();
+  var pass=document.getElementById("loginPassword").value;
+  var errEl=document.getElementById("loginError");
+  var btn=document.getElementById("loginBtn");
+  if(!email||!pass){errEl.textContent="Email va parolni kiriting";return;}
+  btn.textContent="Kirilmoqda...";btn.disabled=true;
+  auth.signInWithEmailAndPassword(email,pass)
+    .then(function(){errEl.textContent="";btn.textContent="Kirish";btn.disabled=false;})
+    .catch(function(){errEl.textContent="Notogri email yoki parol";btn.textContent="Kirish";btn.disabled=false;});
+}
+
+function doLogout(){
+  if(confirm("Chiqasizmi?"))auth.signOut();
+}
+
+document.addEventListener("DOMContentLoaded",function(){
+  var pw=document.getElementById("loginPassword");
+  if(pw)pw.addEventListener("keydown",function(e){if(e.key==="Enter")doLogin();});
+});
+
 window.onload=function(){
   loadAll();
   loadUsersCount();
 };
 </script>
+</div>
+</div>
 </body>
 </html>
