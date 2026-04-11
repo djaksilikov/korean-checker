@@ -506,6 +506,15 @@ function buildEditPanel(ep, id, item){
   mkField("Savol maqsadi","leP",item.purpose);
   mkField("Savol matni","leQ",item.questionText);
 
+  // ── Test turi ──
+  var tf=document.createElement("div");tf.className="field";
+  tf.innerHTML="<label>Test turi</label><select id='leType' style='width:100%'>"+
+    ["Reading","Listening"].map(function(t){
+      return "<option value='"+t+"'"+(item.testType===t?" selected":"")+">"+
+        (t==="Reading"?"📖 Reading":"🎧 Listening")+"</option>";
+    }).join("")+"</select>";
+  ep.appendChild(tf);
+
   // ── Qiyinlik ──
   var df=document.createElement("div");df.className="field";
   var diffs=["Very Easy","Easy","Medium","Above Medium","Above Medium Hard","Hard","Hard Hard"];
@@ -695,6 +704,8 @@ async function saveLast(id, item){
   update.correctIndex=parseInt(document.getElementById("leCorrect").value);
   var diffEl=document.getElementById("leDiff");
   if(diffEl) update.difficulty=diffEl.value;
+  var typeEl=document.getElementById("leType");
+  if(typeEl) update.testType=typeEl.value;
   var opts=item.options?JSON.parse(JSON.stringify(item.options)):Array(4).fill({});
   for(var i=0;i<4;i++){
     if(!opts[i])opts[i]={};
