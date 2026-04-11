@@ -323,7 +323,13 @@ function onSearch(){
     if(diff && item.difficulty!==diff) return false;
     if(grp==='group' && !item.groupId) return false;
     if(grp==='single' && item.groupId) return false;
-    if(q){var txt=(item.purpose||'')+(item.questionText||'');if(txt.toLowerCase().indexOf(q)===-1)return false}
+    if(q){
+      // Maqsad, savol matni va barcha variant matnlarida qidirish
+      var txt=(item.purpose||'')+(item.questionText||'');
+      var opts=item.options||[];
+      opts.forEach(function(opt){txt+=(opt.text||'');});
+      if(txt.toLowerCase().indexOf(q)===-1)return false;
+    }
     return true;
   });
   var sorted=[];var grouped={};var singles=[];
@@ -338,12 +344,31 @@ function onSearch(){
   singles.forEach(function(i){sorted.push(i)});
   var el=document.getElementById('qList');
   if(!sorted.length){el.innerHTML='<div class="spinner">Natija topilmadi</div>';return}
+  var q2=document.getElementById('searchInput').value.toLowerCase().trim();
   el.innerHTML=sorted.map(function(item){
     var ig=!!item.groupId;var ord=item.groupOrder||1;
     var cls='q-item'+(ig?(ord===1?' group-first':' group-other'):'');
+
+    // Qaysi joyda topilganini aniqlash
+    var foundIn='';
+    if(q2){
+      if((item.purpose||'').toLowerCase().indexOf(q2)!==-1) foundIn='maqsad';
+      else if((item.questionText||'').toLowerCase().indexOf(q2)!==-1) foundIn='savol matni';
+      else {
+        var opts=item.options||[];
+        for(var oi=0;oi<opts.length;oi++){
+          if((opts[oi].text||'').toLowerCase().indexOf(q2)!==-1){
+            foundIn=['①','②','③','④'][oi]+' variant';break;
+          }
+        }
+      }
+    }
+
+    var foundBadge=foundIn?'<span style="font-size:10px;color:#f1c40f;background:rgba(241,196,15,0.1);border:1px solid rgba(241,196,15,0.3);padding:1px 6px;border-radius:10px;margin-left:4px">'+foundIn+'</span>':'';
+
     return '<div class="'+cls+'" onclick="selectQ(\''+item._id+'\',event)">'+
       '<div class="q-meta">'+secBadge(item.section)+typeBadge(item.testType||'Reading')+diffBadge(item.difficulty||'Easy')+
-      (ig?'<span class="badge bb">🔗 '+ord+'/2</span>':'')+
+      (ig?'<span class="badge bb">🔗 '+ord+'/2</span>':'')+foundBadge+
       '</div><div class="q-purpose">'+(item.purpose||item.questionText||'—')+'</div>'+
       '<div class="q-sub">'+item._id+'</div></div>';
   }).join('');
