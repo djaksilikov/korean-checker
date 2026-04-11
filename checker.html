@@ -588,6 +588,10 @@ function buildEditPanel(ep, id, item){
     ep.appendChild(d);
   }
 
+  // Maqsad shablon audiosi
+  mkMedia("Maqsad shablon audiosi (purposeAudioUrl)", item.purposeAudioUrl, "audio", function(url){
+    return db.collection("questions").doc(id).update({purposeAudioUrl:url});
+  });
   // Savol audio va rasmi
   mkMedia("Savol audiosi", item.questionAudioUrl, "audio", function(url){
     return db.collection("questions").doc(id).update({questionAudioUrl:url});
@@ -620,12 +624,19 @@ function buildEditPanel(ep, id, item){
       vc.appendChild(vtf);
       vc.querySelector("#leO"+i).value=opt.text||"";
 
-      // Variant audio
+      // Variant shablon audiosi
+      mkVariantMedia(vc, opt.templateAudioUrl, "audio", i, id, item, function(i2, url){
+        var o=item.options?JSON.parse(JSON.stringify(item.options)):Array(4).fill({});
+        if(!o[i2])o[i2]={};o[i2].templateAudioUrl=url;
+        return db.collection("questions").doc(id).update({options:o});
+      }, "🎧 Shablon audio");
+
+      // Variant o'z audiosi
       mkVariantMedia(vc, opt.audioUrl, "audio", i, id, item, function(i2, url){
         var o=item.options?JSON.parse(JSON.stringify(item.options)):Array(4).fill({});
         if(!o[i2])o[i2]={};o[i2].audioUrl=url;
         return db.collection("questions").doc(id).update({options:o});
-      });
+      }, "🎵 Variant audiosi");
 
       // Variant rasmi
       mkVariantMedia(vc, opt.imageUrl, "image", i, id, item, function(i2, url){
@@ -652,9 +663,9 @@ function buildEditPanel(ep, id, item){
   saveLine.appendChild(saveBtn);ep.appendChild(saveLine);
 }
 
-function mkVariantMedia(container, url, type, idx, docId, item, updateFn){
+function mkVariantMedia(container, url, type, idx, docId, item, updateFn, labelText){
   var d=document.createElement("div");d.className="vfield";
-  var l=document.createElement("label");l.textContent=type==="audio"?"Audio":"Rasm";d.appendChild(l);
+  var l=document.createElement("label");l.textContent=labelText||(type==="audio"?"Audio":"Rasm");d.appendChild(l);
   if(url){
     if(type==="audio"){
       var p=document.createElement("audio");p.controls=true;
@@ -675,7 +686,7 @@ function mkVariantMedia(container, url, type, idx, docId, item, updateFn){
     d.appendChild(db2);
   } else {
     var no=document.createElement("div");no.style.cssText="font-size:11px;color:var(--muted);margin-bottom:4px";
-    no.textContent=type==="audio"?"Audio yo'q":"Rasm yo'q";d.appendChild(no);
+    no.textContent=type==="audio"?(labelText||"Audio")+" yo'q":"Rasm yo'q";d.appendChild(no);
   }
   var ul=document.createElement("label");ul.className="upload-btn";ul.style.fontSize="11px";
   ul.textContent=url?(type==="audio"?"🎧 Almashtir":"🖼 Almashtir"):(type==="audio"?"🎧 Qo'shish":"🖼 Qo'shish");
