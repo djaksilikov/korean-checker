@@ -814,27 +814,67 @@ function loadStats(){
   setStatus('statsStatus','⏳ Yuklanmoqda...','loading');
   db.collection('questions').get().then(function(snap){
     var all=snap.docs.map(function(d){return d.data()});
+
+    // Umumiy
     var byS={},byT={},byD={};var gids=new Set();
+    // Reading va Listening uchun alohida qiyinlik
+    var byDR={},byDL={};
+    var diffs=['Very Easy','Easy','Medium','Above Medium','Above Medium Hard','Hard','Hard Hard'];
+
     all.forEach(function(item){
       byS[item.section]=(byS[item.section]||0)+1;
       byT[item.testType]=(byT[item.testType]||0)+1;
       byD[item.difficulty]=(byD[item.difficulty]||0)+1;
       if(item.groupId&&item.groupOrder===1) gids.add(item.groupId);
+      if(item.testType==='Reading'){
+        byDR[item.difficulty]=(byDR[item.difficulty]||0)+1;
+      } else if(item.testType==='Listening'){
+        byDL[item.difficulty]=(byDL[item.difficulty]||0)+1;
+      }
     });
+
     function sc(n,l,c){return '<div class="stat-card"><div class="stat-num" style="color:'+c+'">'+n+'</div><div class="stat-lbl">'+l+'</div></div>'}
-    var html='<div class="stat-grid">'+
+    function sectionTitle(t){return '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin:16px 0 6px;font-family:IBM Plex Mono,monospace">'+t+'</div>'}
+    var dc={'Very Easy':'#27ae60','Easy':'#2ecc71','Medium':'var(--yellow)','Above Medium':'#e67e22','Above Medium Hard':'#8e44ad','Hard':'var(--red)','Hard Hard':'#2c3e50'};
+
+    // Umumiy
+    var html=sectionTitle('UMUMIY');
+    html+='<div class="stat-grid">'+
       sc(all.length,'Jami savol','var(--accent)')+
       sc(byS['Interactive EPS']||0,'Interactive EPS','var(--accent2)')+
-      sc(byS['TOPIK 1']||0,'TOPIK 1','var(--green)')+
-      sc(byS['TOPIK 2']||0,'TOPIK 2','var(--yellow)')+
-      sc(byT['Listening']||0,'Listening','var(--accent)')+
-      sc(byT['Reading']||0,'Reading','var(--accent2)')+
+      sc(byT['Reading']||0,'📖 Reading','var(--accent2)')+
+      sc(byT['Listening']||0,'🎧 Listening','var(--accent)')+
       sc(gids.size,'Guruh juftligi','#e67e22')+
       '</div>';
-    html+='<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin:12px 0 6px;font-family:IBM Plex Mono,monospace">QIYINLIK</div><div class="stat-grid">';
-    var dc={'Very Easy':'#27ae60','Easy':'var(--green)','Medium':'var(--yellow)','Above Medium':'#e67e22','Above Medium Hard':'#8e44ad','Hard':'var(--red)','Hard Hard':'#2c3e50'};
-    ['Very Easy','Easy','Medium','Above Medium','Above Medium Hard','Hard','Hard Hard'].forEach(function(k){html+=sc(byD[k]||0,k,dc[k])});
+
+    // Reading qiyinlik
+    html+=sectionTitle("📖 READING — QIYINLIK BO'YICHA");
+    html+='<div class="stat-grid">';
+    var readingTotal=byT['Reading']||0;
+    diffs.forEach(function(k){
+      var n=byDR[k]||0;
+      var pct=readingTotal>0?Math.round(n/readingTotal*100):0;
+      html+='<div class="stat-card"><div class="stat-num" style="color:'+dc[k]+'">'+n+'</div><div class="stat-lbl">'+k+'</div><div style="font-size:10px;color:var(--muted);margin-top:2px">'+pct+'%</div></div>';
+    });
     html+='</div>';
+
+    // Listening qiyinlik
+    html+=sectionTitle("🎧 LISTENING — QIYINLIK BO'YICHA");
+    html+='<div class="stat-grid">';
+    var listenTotal=byT['Listening']||0;
+    diffs.forEach(function(k){
+      var n=byDL[k]||0;
+      var pct=listenTotal>0?Math.round(n/listenTotal*100):0;
+      html+='<div class="stat-card"><div class="stat-num" style="color:'+dc[k]+'">'+n+'</div><div class="stat-lbl">'+k+'</div><div style="font-size:10px;color:var(--muted);margin-top:2px">'+pct+'%</div></div>';
+    });
+    html+='</div>';
+
+    // Jami qiyinlik
+    html+=sectionTitle('JAMI QIYINLIK');
+    html+='<div class="stat-grid">';
+    diffs.forEach(function(k){html+=sc(byD[k]||0,k,dc[k])});
+    html+='</div>';
+
     document.getElementById('statsResult').innerHTML=html;
     setStatus('statsStatus','✅ Tayyor!','success');
   }).catch(function(e){setStatus('statsStatus','❌ Xato: '+e.message,'error')});
