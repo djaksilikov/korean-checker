@@ -121,6 +121,7 @@ tr:hover td{background:var(--surface2)}
     <button class="tab" onclick="switchTab('stats',this)">📊 Statistika</button>
     <button class="tab" onclick="switchTab('leaderboard',this)">🏆 Leaderboard</button>
     <button class="tab" onclick="switchTab('users',this)">👥 Foydalanuvchilar</button>
+    <button class="tab" onclick="switchTab('composer',this)">🛠 Savol tuzish</button>
   </div>
 </header>
 
@@ -244,6 +245,94 @@ tr:hover td{background:var(--surface2)}
   </div>
 </div>
 
+<!-- ══ SAVOL TUZISH ══ -->
+<div id="tab-composer" class="page">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
+
+    <!-- CHAP: Qidiruv -->
+    <div class="card">
+      <div class="card-title">🔎 Savol qidirish</div>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <input id="cmpSearch" placeholder="Savol matni yoki maqsad..." style="flex:1" oninput="cmpDoSearch()"/>
+      </div>
+      <div id="cmpResults" style="max-height:70vh;overflow-y:auto"></div>
+    </div>
+
+    <!-- O'NG: Yangi savol tuzish -->
+    <div class="card">
+      <div class="card-title">🛠 Yangi savol tuzish</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:14px;font-family:IBM Plex Mono,monospace">
+        Chap tomondagi savoldan ID ni nusxalab, quyidagi maydonlarga kiriting
+      </div>
+
+      <!-- Bo'lim va tur -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+        <div>
+          <label style="font-size:11px;color:var(--muted);font-family:IBM Plex Mono,monospace">TEST TURI</label>
+          <select id="cmpType" style="width:100%;margin-top:4px">
+            <option value="Reading">📖 Reading</option>
+            <option value="Listening">🎧 Listening</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--muted);font-family:IBM Plex Mono,monospace">QIYINLIK</label>
+          <select id="cmpDiff" style="width:100%;margin-top:4px">
+            <option>Very Easy</option><option>Easy</option>
+            <option selected>Medium</option>
+            <option>Above Medium</option><option>Above Medium Hard</option>
+            <option>Hard</option><option>Hard Hard</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Maqsad -->
+      <div style="margin-bottom:10px">
+        <label style="font-size:11px;color:var(--muted);font-family:IBM Plex Mono,monospace">MAQSAD MATNI</label>
+        <textarea id="cmpPurpose" placeholder="Savol maqsadi matni..." style="width:100%;min-height:44px;margin-top:4px"></textarea>
+      </div>
+      <div style="margin-bottom:10px">
+        <label style="font-size:11px;color:var(--muted);font-family:IBM Plex Mono,monospace">MAQSAD AUDIO ID</label>
+        <input id="cmpPurposeTplId" placeholder="audioTemplates ID..." style="width:100%;margin-top:4px"/>
+      </div>
+
+      <!-- Savol -->
+      <div style="margin-bottom:10px">
+        <label style="font-size:11px;color:var(--muted);font-family:IBM Plex Mono,monospace">SAVOL MATNI</label>
+        <textarea id="cmpQText" placeholder="Savol matni..." style="width:100%;min-height:44px;margin-top:4px"></textarea>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+        <div>
+          <label style="font-size:11px;color:var(--muted);font-family:IBM Plex Mono,monospace">SAVOL AUDIO URL/ID</label>
+          <input id="cmpQAudio" placeholder="URL yoki ID..." style="width:100%;margin-top:4px"/>
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--muted);font-family:IBM Plex Mono,monospace">SAVOL RASM URL/ID</label>
+          <input id="cmpQImage" placeholder="URL yoki ID..." style="width:100%;margin-top:4px"/>
+        </div>
+      </div>
+
+      <!-- To'g'ri javob -->
+      <div style="margin-bottom:12px">
+        <label style="font-size:11px;color:var(--muted);font-family:IBM Plex Mono,monospace">TO'G'RI JAVOB</label>
+        <select id="cmpCorrect" style="width:100%;margin-top:4px">
+          <option value="0">① 1-variant</option>
+          <option value="1">② 2-variant</option>
+          <option value="2">③ 3-variant</option>
+          <option value="3">④ 4-variant</option>
+        </select>
+      </div>
+
+      <!-- Variantlar -->
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:8px;font-family:IBM Plex Mono,monospace">VARIANTLAR</div>
+      <div id="cmpOpts"></div>
+
+      <div id="cmpStatus" class="status" style="margin:10px 0"></div>
+      <button class="btn btn-blue" onclick="cmpSave()" style="width:100%">💾 Saqlash</button>
+    </div>
+  </div>
+</div>
+
+
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -270,6 +359,7 @@ function switchTab(name,btn){
   if(btn) btn.classList.add('active');
   if(name==='last') loadLast();
   if(name==='leaderboard') loadLeaderboard();
+  if(name==='composer') initComposer();
 }
 function setStatus(id,msg,type){
   var el=document.getElementById(id);
@@ -1108,6 +1198,155 @@ document.addEventListener("DOMContentLoaded",function(){
   var pw=document.getElementById("loginPassword");
   if(pw)pw.addEventListener("keydown",function(e){if(e.key==="Enter")doLogin();});
 });
+
+// ══ SAVOL TUZISH (COMPOSER) ══
+var cmpAllQ=[];
+
+function initComposer(){
+  buildCmpOpts();
+  if(cmpAllQ.length===0)cmpLoadAll();
+}
+
+function cmpLoadAll(){
+  db.collection("questions").get().then(function(snap){
+    cmpAllQ=snap.docs.map(function(d){
+      var data=d.data();data._id=d.id;return data;
+    });
+    cmpDoSearch();
+  });
+}
+
+function buildCmpOpts(){
+  var nums=["①","②","③","④"];
+  var html="";
+  for(var i=0;i<4;i++){
+    html+="<div style='background:var(--surface2);border-radius:10px;padding:10px;margin-bottom:8px'>"+
+      "<div style='font-size:11px;font-weight:700;color:var(--accent);margin-bottom:6px'>"+nums[i]+" variant</div>"+
+      "<div style='display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px'>"+
+        "<div><label style='font-size:10px;color:var(--muted)'>AUDIO URL/ID</label>"+
+        "<input id='cmpOAudio"+i+"' placeholder='URL yoki ID...' style='width:100%;margin-top:2px'/></div>"+
+        "<div><label style='font-size:10px;color:var(--muted)'>RASM URL/ID</label>"+
+        "<input id='cmpOImage"+i+"' placeholder='URL yoki ID...' style='width:100%;margin-top:2px'/></div>"+
+      "</div>"+
+      "<label style='font-size:10px;color:var(--muted)'>MATN</label>"+
+      "<input id='cmpOText"+i+"' placeholder='Variant matni...' style='width:100%;margin-top:2px'/>"+
+      "</div>";
+  }
+  var el=document.getElementById("cmpOpts");
+  if(el)el.innerHTML=html;
+}
+
+function cmpDoSearch(){
+  var q=((document.getElementById("cmpSearch")||{}).value||"").toLowerCase().trim();
+  var el=document.getElementById("cmpResults");
+  if(!el)return;
+  if(q.length<2){
+    el.innerHTML="<div style='color:var(--muted);font-size:12px;padding:8px'>Kamida 2 ta harf kiriting</div>";
+    return;
+  }
+  var filtered=cmpAllQ.filter(function(item){
+    return ((item.purpose||"")+(item.questionText||"")).toLowerCase().includes(q);
+  }).slice(0,30);
+  if(!filtered.length){el.innerHTML="<div style='color:var(--muted);font-size:12px;padding:8px'>Topilmadi</div>";return;}
+  el.innerHTML=filtered.map(function(item){
+    return "<div class='q-item' onclick='cmpShowItem(this)' data-id='"+item._id+"' style='cursor:pointer'>"+
+      "<div class='q-meta'>"+diffBadge(item.difficulty||"")+" "+typeBadge(item.testType||"Reading")+"</div>"+
+      "<div class='q-purpose'>"+(item.purpose||item.questionText||"—").substring(0,80)+"</div>"+
+      "</div>";
+  }).join("");
+}
+
+function cmpShowItem(el){
+  var id=el.getAttribute("data-id");
+  var item=cmpAllQ.find(function(q){return q._id===id;});
+  if(!item)return;
+  var opts=item.options||[];
+  var nums=["①","②","③","④"];
+  var html="<div style='background:var(--surface2);border-radius:12px;padding:14px;margin-bottom:10px'>"+
+    "<div style='font-size:12px;font-weight:700;color:var(--accent);margin-bottom:8px'>📋 Ma\'lumotlar</div>";
+  html+=cmpRow("Doc ID",item._id.substring(0,20)+"...",item._id);
+  if(item.purpose)html+=cmpRow("Maqsad",item.purpose.substring(0,60),null);
+  if(item.purposeTemplateId)html+=cmpRow("Maqsad audio ID",item.purposeTemplateId,item.purposeTemplateId);
+  if(item.questionText)html+=cmpRow("Savol",item.questionText.substring(0,60),null);
+  if(item.questionAudioUrl)html+=cmpRow("Savol audio",item.questionAudioUrl.substring(0,40)+"...",item.questionAudioUrl);
+  if(item.questionImageUrl)html+=cmpRow("Savol rasm",item.questionImageUrl.substring(0,40)+"...",item.questionImageUrl);
+  html+="</div>";
+  opts.forEach(function(opt,i){
+    html+="<div style='background:var(--surface2);border-radius:10px;padding:10px;margin-bottom:6px'>"+
+      "<div style='font-size:11px;font-weight:700;color:var(--accent);margin-bottom:6px'>"+nums[i]+" variant"+(item.correctIndex===i?" ✅":"")+"</div>";
+    if(opt.text)html+=cmpRow("Matn",opt.text.substring(0,60),null);
+    if(opt.templateId)html+=cmpRow("Shablon ID",opt.templateId,opt.templateId);
+    if(opt.audioUrl)html+=cmpRow("Audio",opt.audioUrl.substring(0,40)+"...",opt.audioUrl);
+    if(opt.imageUrl)html+=cmpRow("Rasm",opt.imageUrl.substring(0,40)+"...",opt.imageUrl);
+    html+="</div>";
+  });
+  document.getElementById("cmpResults").innerHTML=html;
+  // Copy tugmalarini ulash
+  document.getElementById("cmpResults").querySelectorAll(".cmp-copy-btn").forEach(function(btn){
+    btn.addEventListener("click",function(){cmpCopy(this.getAttribute("data-copy"));});
+  });
+}
+
+function cmpRow(label,display,copyVal){
+  var btn=copyVal
+    ? '<button data-copy="'+copyVal.replace(/"/g,"&quot;")+'" class="cmp-copy-btn" style="padding:2px 8px;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--accent);font-size:10px;cursor:pointer;margin-left:4px">📋</button>'
+    : "";
+  return "<div style='display:flex;align-items:flex-start;gap:4px;margin-bottom:5px'>"+
+    "<div style='font-size:10px;color:var(--muted);font-family:IBM Plex Mono,monospace;min-width:90px;flex-shrink:0'>"+label+"</div>"+
+    "<div style='font-size:11px;color:var(--text);flex:1;word-break:break-all'>"+display+"</div>"+btn+"</div>";
+}
+
+function cmpCopy(val){
+  navigator.clipboard.writeText(val).then(function(){
+    var el=document.createElement("div");
+    el.textContent="✅ Nusxalandi!";
+    el.style.cssText="position:fixed;bottom:20px;right:20px;background:#27ae60;color:#fff;padding:10px 18px;border-radius:10px;font-size:13px;z-index:9999";
+    document.body.appendChild(el);
+    setTimeout(function(){el.remove();},2000);
+  });
+}
+
+async function cmpSave(){
+  setStatus("cmpStatus","⏳ Saqlanmoqda...","loading");
+  var opts=[];
+  for(var i=0;i<4;i++){
+    var o={};
+    var t=(document.getElementById("cmpOText"+i)||{}).value||"";
+    var a=(document.getElementById("cmpOAudio"+i)||{}).value||"";
+    var img=(document.getElementById("cmpOImage"+i)||{}).value||"";
+    if(t)o.text=t;if(a)o.audioUrl=a;if(img)o.imageUrl=img;
+    opts.push(o);
+  }
+  var pTplId=(document.getElementById("cmpPurposeTplId")||{}).value||"";
+  var doc={
+    section:"Interactive EPS",
+    testType:document.getElementById("cmpType").value,
+    difficulty:document.getElementById("cmpDiff").value,
+    correctIndex:parseInt(document.getElementById("cmpCorrect").value),
+    options:opts,
+    createdAt:firebase.firestore.FieldValue.serverTimestamp()
+  };
+  var purpose=(document.getElementById("cmpPurpose")||{}).value||"";
+  var qText=(document.getElementById("cmpQText")||{}).value||"";
+  var qAudio=(document.getElementById("cmpQAudio")||{}).value||"";
+  var qImage=(document.getElementById("cmpQImage")||{}).value||"";
+  if(purpose)doc.purpose=purpose;
+  if(pTplId)doc.purposeTemplateId=pTplId;
+  if(qText)doc.questionText=qText;
+  if(qAudio)doc.questionAudioUrl=qAudio;
+  if(qImage)doc.questionImageUrl=qImage;
+
+  try{
+    await db.collection("questions").add(doc);
+    setStatus("cmpStatus","✅ Savol saqlandi!","success");
+    ["cmpPurpose","cmpPurposeTplId","cmpQText","cmpQAudio","cmpQImage"].forEach(function(id){var el=document.getElementById(id);if(el)el.value="";});
+    for(var i=0;i<4;i++){["cmpOText","cmpOAudio","cmpOImage"].forEach(function(p){var el=document.getElementById(p+i);if(el)el.value="";});}
+    cmpLoadAll();
+  }catch(e){
+    setStatus("cmpStatus","❌ Xato: "+e.message,"error");
+  }
+}
+
 
 window.onload=function(){
   loadAll();
