@@ -252,10 +252,27 @@ tr:hover td{background:var(--surface2)}
     <!-- CHAP: Qidiruv -->
     <div class="card">
       <div class="card-title">🔎 Savol qidirish</div>
-      <div style="display:flex;gap:8px;margin-bottom:12px">
-        <input id="cmpSearch" placeholder="Savol matni yoki maqsad..." style="flex:1" oninput="cmpDoSearch()"/>
+
+      <!-- Qidiruv maydoni -->
+      <input id="cmpSearch" placeholder="Savol matni yoki maqsad..." style="width:100%;margin-bottom:8px" oninput="cmpDoSearch()"/>
+
+      <!-- Filterlar -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
+        <select id="cmpFType" onchange="cmpDoSearch()" style="font-size:12px">
+          <option value="">Barcha tur</option>
+          <option value="Reading">📖 Reading</option>
+          <option value="Listening">🎧 Listening</option>
+        </select>
+        <select id="cmpFDiff" onchange="cmpDoSearch()" style="font-size:12px">
+          <option value="">Barcha qiyinlik</option>
+          <option>Very Easy</option><option>Easy</option><option>Medium</option>
+          <option>Above Medium</option><option>Above Medium Hard</option>
+          <option>Hard</option><option>Hard Hard</option>
+        </select>
       </div>
-      <div id="cmpResults" style="max-height:70vh;overflow-y:auto"></div>
+
+      <div id="cmpResultCount" style="font-size:11px;color:var(--muted);margin-bottom:6px;font-family:IBM Plex Mono,monospace"></div>
+      <div id="cmpResults" style="max-height:65vh;overflow-y:auto"></div>
     </div>
 
     <!-- O'NG: Yangi savol tuzish -->
@@ -1238,17 +1255,30 @@ function buildCmpOpts(){
 
 function cmpDoSearch(){
   var q=((document.getElementById("cmpSearch")||{}).value||"").toLowerCase().trim();
+  var fType=((document.getElementById("cmpFType")||{}).value||"");
+  var fDiff=((document.getElementById("cmpFDiff")||{}).value||"");
   var el=document.getElementById("cmpResults");
+  var countEl=document.getElementById("cmpResultCount");
   if(!el)return;
-  if(q.length<2){
-    el.innerHTML="<div style='color:var(--muted);font-size:12px;padding:8px'>Kamida 2 ta harf kiriting</div>";
+
+  var filtered=cmpAllQ.filter(function(item){
+    if(fType && item.testType!==fType) return false;
+    if(fDiff && item.difficulty!==fDiff) return false;
+    if(q.length>=2){
+      var txt=((item.purpose||"")+(item.questionText||"")).toLowerCase();
+      if(!txt.includes(q)) return false;
+    }
+    return true;
+  });
+
+  if(countEl) countEl.textContent=filtered.length+" ta savol topildi";
+
+  if(!filtered.length){
+    el.innerHTML="<div style='color:var(--muted);font-size:12px;padding:8px'>Topilmadi</div>";
     return;
   }
-  var filtered=cmpAllQ.filter(function(item){
-    return ((item.purpose||"")+(item.questionText||"")).toLowerCase().includes(q);
-  }).slice(0,30);
-  if(!filtered.length){el.innerHTML="<div style='color:var(--muted);font-size:12px;padding:8px'>Topilmadi</div>";return;}
-  el.innerHTML=filtered.map(function(item){
+
+  el.innerHTML=filtered.slice(0,50).map(function(item){
     return "<div class='q-item' onclick='cmpShowItem(this)' data-id='"+item._id+"' style='cursor:pointer'>"+
       "<div class='q-meta'>"+diffBadge(item.difficulty||"")+" "+typeBadge(item.testType||"Reading")+"</div>"+
       "<div class='q-purpose'>"+(item.purpose||item.questionText||"—").substring(0,80)+"</div>"+
