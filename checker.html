@@ -122,6 +122,7 @@ tr:hover td{background:var(--surface2)}
     <button class="tab" onclick="switchTab('leaderboard',this)">🏆 Leaderboard</button>
     <button class="tab" onclick="switchTab('users',this)">👥 Foydalanuvchilar</button>
     <button class="tab" onclick="switchTab('composer',this)">🛠 Savol tuzish</button>
+    <button class="tab" onclick="switchTab('trees',this)">🌳 Daraxtlar</button>
   </div>
 </header>
 
@@ -244,6 +245,53 @@ tr:hover td{background:var(--surface2)}
     <div id="userList"></div>
   </div>
 </div>
+
+<!-- ══ DARAXTLAR ══ -->
+<div id="tab-trees" class="page">
+  <div id="treesStatus" class="status"></div>
+
+  <!-- Umumiy statistika -->
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-title">🌳 Daraxt statistikasi</div>
+    <div class="stat-grid" id="treeStatGrid">
+      <div class="stat-card">
+        <div class="stat-num" id="statTotalTrees" style="color:var(--green)">—</div>
+        <div class="stat-lbl">Jami ekilgan daraxtlar</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="statTotalCoins" style="color:var(--yellow)">—</div>
+        <div class="stat-lbl">Jami yig'ilgan coinlar</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="statActiveUsers" style="color:var(--accent)">—</div>
+        <div class="stat-lbl">Coin yig'gan foydalanuvchilar</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="statAvgCoins" style="color:var(--accent2)">—</div>
+        <div class="stat-lbl">O'rtacha coin (kishi boshiga)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Daraxt ekkan foydalanuvchilar -->
+  <div class="card" style="margin-bottom:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div class="card-title" style="margin-bottom:0">🌱 Daraxt ekganlar</div>
+      <div id="treePlantersCount" style="font-size:12px;color:var(--muted);font-family:IBM Plex Mono,monospace"></div>
+    </div>
+    <div id="treePlantersList"></div>
+  </div>
+
+  <!-- Coin yig'ayotganlar (hali daraxt ekmagan) -->
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div class="card-title" style="margin-bottom:0">🪙 Coin yig'ayotganlar</div>
+      <div id="coinCollectorsCount" style="font-size:12px;color:var(--muted);font-family:IBM Plex Mono,monospace"></div>
+    </div>
+    <div id="coinCollectorsList"></div>
+  </div>
+</div>
+
 
 <!-- ══ SAVOL TUZISH ══ -->
 <div id="tab-composer" class="page">
@@ -377,6 +425,7 @@ function switchTab(name,btn){
   if(name==='last') loadLast();
   if(name==='leaderboard') loadLeaderboard();
   if(name==='composer') initComposer();
+  if(name==='trees') loadTrees();
 }
 function setStatus(id,msg,type){
   var el=document.getElementById(id);
@@ -1215,6 +1264,127 @@ document.addEventListener("DOMContentLoaded",function(){
   var pw=document.getElementById("loginPassword");
   if(pw)pw.addEventListener("keydown",function(e){if(e.key==="Enter")doLogin();});
 });
+
+// ══ DARAXTLAR ══
+function loadTrees(){
+  setStatus("treesStatus","⏳ Yuklanmoqda...","loading");
+  db.collection("coins").get().then(function(snap){
+    var all=snap.docs.map(function(d){var data=d.data();data._uid=d.id;return data;});
+
+    // Umumiy statistika
+    var totalTrees=0, totalCoins=0;
+    all.forEach(function(u){
+      totalTrees+=(u.treesPlanted||0);
+      totalCoins+=(u.totalCoins||0);
+    });
+    var activeUsers=all.filter(function(u){return (u.totalCoins||0)>0;}).length;
+    var avgCoins=activeUsers>0?Math.round(totalCoins/activeUsers):0;
+
+    document.getElementById("statTotalTrees").textContent=totalTrees;
+    document.getElementById("statTotalCoins").textContent=totalCoins;
+    document.getElementById("statActiveUsers").textContent=activeUsers;
+    document.getElementById("statAvgCoins").textContent=avgCoins;
+
+    // Daraxt ekganlar (treesPlanted > 0), ko'pdan kammga
+    var planters=all.filter(function(u){return (u.treesPlanted||0)>0;})
+      .sort(function(a,b){return (b.treesPlanted||0)-(a.treesPlanted||0);});
+
+    document.getElementById("treePlantersCount").textContent=planters.length+" ta foydalanuvchi";
+
+    if(!planters.length){
+      document.getElementById("treePlantersList").innerHTML=
+        "<div style='color:var(--muted);font-size:13px;padding:8px'>Hali hech kim daraxt ekmagan</div>";
+    } else {
+      document.getElementById("treePlantersList").innerHTML=
+        "<div style='overflow-x:auto'><table style='width:100%;border-collapse:collapse;font-size:13px'>"+
+        "<thead><tr style='border-bottom:1px solid var(--border)'>"+
+          "<th style='text-align:left;padding:8px 6px;color:var(--muted);font-size:11px;font-family:IBM Plex Mono,monospace'>#</th>"+
+          "<th style='text-align:left;padding:8px 6px;color:var(--muted);font-size:11px;font-family:IBM Plex Mono,monospace'>FOYDALANUVCHI</th>"+
+          "<th style='text-align:center;padding:8px 6px;color:var(--muted);font-size:11px;font-family:IBM Plex Mono,monospace'>🌳 DARAXT</th>"+
+          "<th style='text-align:center;padding:8px 6px;color:var(--muted);font-size:11px;font-family:IBM Plex Mono,monospace'>🪙 COIN</th>"+
+          "<th style='text-align:center;padding:8px 6px;color:var(--muted);font-size:11px;font-family:IBM Plex Mono,monospace'>PROGRESS</th>"+
+        "</tr></thead><tbody>"+
+        planters.map(function(u,i){
+          var coins=u.totalCoins||0;
+          var trees=u.treesPlanted||0;
+          var pct=Math.min(Math.round((coins%500)/5),100);
+          var nextTree=500-(coins%500);
+          return "<tr style='border-bottom:1px solid var(--border)'>"+
+            "<td style='padding:10px 6px;color:var(--muted);font-size:12px'>"+(i+1)+"</td>"+
+            "<td style='padding:10px 6px'>"+
+              "<div style='display:flex;align-items:center;gap:8px'>"+
+                "<span style='font-size:20px'>"+(u.avatar||"👤")+"</span>"+
+                "<div>"+
+                  "<div style='font-weight:700;color:var(--text)'>"+(u.name||"—")+"<span style='color:var(--muted);font-weight:400;font-size:11px'>"+(u.tag||"")+"</span></div>"+
+                  "<div style='font-size:11px;color:var(--muted)'>"+(u.country||"")+"</div>"+
+                "</div>"+
+              "</div>"+
+            "</td>"+
+            "<td style='padding:10px 6px;text-align:center;font-weight:800;color:var(--green);font-size:16px'>"+trees+"</td>"+
+            "<td style='padding:10px 6px;text-align:center;font-weight:700;color:var(--yellow)'>"+coins+"</td>"+
+            "<td style='padding:10px 6px'>"+
+              "<div style='background:var(--surface2);border-radius:6px;height:8px;overflow:hidden'>"+
+                "<div style='background:linear-gradient(90deg,var(--yellow),var(--green));height:100%;width:"+pct+"%'></div>"+
+              "</div>"+
+              "<div style='font-size:10px;color:var(--muted);margin-top:2px;text-align:center'>"+nextTree+" coin kerak</div>"+
+            "</td>"+
+          "</tr>";
+        }).join("")+
+        "</tbody></table></div>";
+    }
+
+    // Coin yig'ayotganlar (coin bor, lekin daraxt ekmagans)
+    var collectors=all.filter(function(u){return (u.totalCoins||0)>0&&(u.treesPlanted||0)===0;})
+      .sort(function(a,b){return (b.totalCoins||0)-(a.totalCoins||0);});
+
+    document.getElementById("coinCollectorsCount").textContent=collectors.length+" ta foydalanuvchi";
+
+    if(!collectors.length){
+      document.getElementById("coinCollectorsList").innerHTML=
+        "<div style='color:var(--muted);font-size:13px;padding:8px'>Ma'lumot yo'q</div>";
+    } else {
+      document.getElementById("coinCollectorsList").innerHTML=
+        "<div style='overflow-x:auto'><table style='width:100%;border-collapse:collapse;font-size:13px'>"+
+        "<thead><tr style='border-bottom:1px solid var(--border)'>"+
+          "<th style='text-align:left;padding:8px 6px;color:var(--muted);font-size:11px;font-family:IBM Plex Mono,monospace'>#</th>"+
+          "<th style='text-align:left;padding:8px 6px;color:var(--muted);font-size:11px;font-family:IBM Plex Mono,monospace'>FOYDALANUVCHI</th>"+
+          "<th style='text-align:center;padding:8px 6px;color:var(--muted);font-size:11px;font-family:IBM Plex Mono,monospace'>🪙 COIN</th>"+
+          "<th style='text-align:center;padding:8px 6px;color:var(--muted);font-size:11px;font-family:IBM Plex Mono,monospace'>PROGRESS</th>"+
+        "</tr></thead><tbody>"+
+        collectors.slice(0,50).map(function(u,i){
+          var coins=u.totalCoins||0;
+          var pct=Math.min(Math.round(coins/5),100);
+          return "<tr style='border-bottom:1px solid var(--border)'>"+
+            "<td style='padding:10px 6px;color:var(--muted);font-size:12px'>"+(i+1)+"</td>"+
+            "<td style='padding:10px 6px'>"+
+              "<div style='display:flex;align-items:center;gap:8px'>"+
+                "<span style='font-size:20px'>"+(u.avatar||"👤")+"</span>"+
+                "<div>"+
+                  "<div style='font-weight:700;color:var(--text)'>"+(u.name||"—")+"<span style='color:var(--muted);font-weight:400;font-size:11px'>"+(u.tag||"")+"</span></div>"+
+                  "<div style='font-size:11px;color:var(--muted)'>"+(u.country||"")+"</div>"+
+                "</div>"+
+              "</div>"+
+            "</td>"+
+            "<td style='padding:10px 6px;text-align:center;font-weight:700;color:var(--yellow)'>"+coins+" / 500</td>"+
+            "<td style='padding:10px 6px'>"+
+              "<div style='background:var(--surface2);border-radius:6px;height:8px;overflow:hidden'>"+
+                "<div style='background:linear-gradient(90deg,var(--yellow),var(--green));height:100%;width:"+pct+"%'></div>"+
+              "</div>"+
+              "<div style='font-size:10px;color:var(--muted);margin-top:2px;text-align:center'>"+(500-coins)+" coin kerak</div>"+
+            "</td>"+
+          "</tr>";
+        }).join("")+
+        "</tbody></table></div>";
+    }
+
+    setStatus("treesStatus","✅ Tayyor!","success");
+    setTimeout(function(){setStatus("treesStatus","","");},2000);
+
+  }).catch(function(e){
+    setStatus("treesStatus","❌ Xato: "+e.message,"error");
+  });
+}
+
 
 // ══ SAVOL TUZISH (COMPOSER) ══
 var cmpAllQ=[];
