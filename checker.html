@@ -250,7 +250,7 @@ tr:hover td{background:var(--surface2)}
 <div id="tab-trees" class="page">
   <div id="treesStatus" class="status"></div>
 
-  <!-- Umumiy statistika -->
+  <!-- Umumiy statistika + Boshqaruv -->
   <div class="card" style="margin-bottom:16px">
     <div class="card-title">🌳 Daraxt statistikasi</div>
     <div class="stat-grid" id="treeStatGrid">
@@ -269,6 +269,39 @@ tr:hover td{background:var(--surface2)}
       <div class="stat-card">
         <div class="stat-num" id="statAvgCoins" style="color:var(--accent2)">—</div>
         <div class="stat-lbl">O'rtacha coin (kishi boshiga)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin boshqaruv paneli -->
+  <div class="card" style="margin-bottom:16px;border:2px solid var(--accent)">
+    <div class="card-title">⚙️ Admin boshqaruvi</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+
+      <!-- Ekilishi kerak -->
+      <div style="background:var(--surface2);border-radius:12px;padding:16px;text-align:center">
+        <div style="font-size:11px;color:var(--muted);font-family:IBM Plex Mono,monospace;margin-bottom:6px">EKILISHI KERAK</div>
+        <div style="font-size:36px;font-weight:800;color:var(--yellow)" id="adminPending">—</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:12px">daraxt · <span id="adminPendingCoins">—</span> coin</div>
+        <div style="display:flex;gap:8px;justify-content:center">
+          <button onclick="adjustTrees(-1)" style="padding:8px 18px;border-radius:8px;border:1.5px solid var(--red);background:transparent;color:var(--red);font-size:14px;font-weight:700;cursor:pointer">−1</button>
+          <button onclick="adjustTrees(1)" style="padding:8px 18px;border-radius:8px;border:none;background:var(--green);color:#fff;font-size:14px;font-weight:700;cursor:pointer">+1</button>
+        </div>
+        <div style="font-size:10px;color:var(--muted);margin-top:8px;font-family:IBM Plex Mono,monospace">
+          +1 = Daraxt ekdim (pending −1, planted +1)<br>
+          −1 = Bekor (pending +1, planted −1)
+        </div>
+      </div>
+
+      <!-- Ekilgan -->
+      <div style="background:var(--surface2);border-radius:12px;padding:16px;text-align:center">
+        <div style="font-size:11px;color:var(--muted);font-family:IBM Plex Mono,monospace;margin-bottom:6px">EKILGAN</div>
+        <div style="font-size:36px;font-weight:800;color:var(--green)" id="adminPlanted">—</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:12px">daraxt</div>
+        <div id="adminStatus" style="font-size:13px;min-height:18px;padding:4px 0"></div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px;font-family:IBM Plex Mono,monospace">
+          So'nggi yangilanish:<br><span id="adminUpdatedAt">—</span>
+        </div>
       </div>
     </div>
   </div>
@@ -1382,6 +1415,75 @@ function loadTrees(){
 
   }).catch(function(e){
     setStatus("treesStatus","❌ Xato: "+e.message,"error");
+  });
+
+  // Admin summary yuklash
+  db.collection("treeOrders").doc("summary").get().then(function(snap){
+    var d=snap.data()||{};
+    var pending=d.pending||0;
+    var planted=d.planted||0;
+    var pendingCoins=d.pendingCoins||0;
+    document.getElementById("adminPending").textContent=pending;
+    document.getElementById("adminPlanted").textContent=planted;
+    document.getElementById("adminPendingCoins").textContent=pendingCoins;
+    if(d.updatedAt){
+      var date=d.updatedAt.toDate();
+      document.getElementById("adminUpdatedAt").textContent=
+        date.toLocaleDateString()+" "+date.toLocaleTimeString();
+    }
+  });
+}
+
+// +1 yoki -1 — admin daraxt ekdi yoki bekor qildi
+function adjustTrees(delta){
+  var status=document.getElementById("adminStatus");
+  status.textContent="⏳ Saqlanmoqda...";status.style.color="var(--yellow)";
+
+  db.collection("treeOrders").doc("summary").get().then(function(snap){
+    var d=snap.data()||{};
+    var pending=d.pending||0;
+    var planted=d.planted||0;
+    var pendingCoins=d.pendingCoins||0;
+
+    if(delta>0){
+      // Admin daraxt ekdi: pending-1, planted+1, pendingCoins-500
+      if(pending<=0){status.textContent="❌ Ekilishi kerak daraxt yo'q!";status.style.color="var(--red)";return;}
+      pending=Math.max(0,pending-1);
+      planted=planted+1;
+      pendingCoins=Math.max(0,pendingCoins-500);
+
+      // Tarixga yozamiz
+      db.collection("treeOrders").doc("history").collection("planted").add({
+        action:"planted",delta:1,
+        pending:pending,planted:planted,
+        by:"admin",at:firebase.firestore.FieldValue.serverTimestamp()
+      });
+    } else {
+      // Bekor: pending+1, planted-1, pendingCoins+500
+      if(planted<=0){status.textContent="❌ Ekilgan daraxt yo'q!";status.style.color="var(--red)";return;}
+      pending=pending+1;
+      planted=Math.max(0,planted-1);
+      pendingCoins=pendingCoins+500;
+
+      db.collection("treeOrders").doc("history").collection("planted").add({
+        action:"reversed",delta:-1,
+        pending:pending,planted:planted,
+        by:"admin",at:firebase.firestore.FieldValue.serverTimestamp()
+      });
+    }
+
+    return db.collection("treeOrders").doc("summary").set({
+      pending:pending,
+      planted:planted,
+      pendingCoins:pendingCoins,
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }).then(function(){
+    status.textContent=delta>0?"✅ Daraxt ekildi!":"↩️ Bekor qilindi!";
+    status.style.color=delta>0?"var(--green)":"var(--yellow)";
+    loadTrees(); // qayta yuklash
+  }).catch(function(e){
+    status.textContent="❌ Xato: "+e.message;status.style.color="var(--red)";
   });
 }
 
