@@ -123,6 +123,7 @@ tr:hover td{background:var(--surface2)}
     <button class="tab" onclick="switchTab('users',this)">👥 Foydalanuvchilar</button>
     <button class="tab" onclick="switchTab('composer',this)">🛠 Savol tuzish</button>
     <button class="tab" onclick="switchTab('trees',this)">🌳 Daraxtlar</button>
+    <button class="tab" onclick="switchTab('icons',this)">🖼 Iconlar</button>
   </div>
 </header>
 
@@ -245,6 +246,20 @@ tr:hover td{background:var(--surface2)}
     <div id="userList"></div>
   </div>
 </div>
+
+<!-- ══ ICONLAR ══ -->
+<div id="tab-icons" class="page">
+  <div id="iconsStatus" class="status"></div>
+
+  <div class="card">
+    <div class="card-title">🖼 Ilova Iconlari</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:16px;font-family:IBM Plex Mono,monospace">
+      Har bir bo'lim uchun icon yuklang. Yangi fayl yuklansa eski avtomatik o'chadi.
+    </div>
+    <div id="iconGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px"></div>
+  </div>
+</div>
+
 
 <!-- ══ DARAXTLAR ══ -->
 <div id="tab-trees" class="page">
@@ -459,6 +474,7 @@ function switchTab(name,btn){
   if(name==='leaderboard') loadLeaderboard();
   if(name==='composer') initComposer();
   if(name==='trees') loadTrees();
+  if(name==='icons') loadIcons();
 }
 function setStatus(id,msg,type){
   var el=document.getElementById(id);
@@ -1297,6 +1313,145 @@ document.addEventListener("DOMContentLoaded",function(){
   var pw=document.getElementById("loginPassword");
   if(pw)pw.addEventListener("keydown",function(e){if(e.key==="Enter")doLogin();});
 });
+
+// ══ ICONLAR ══
+var ICONS_LIST = [
+  { key: "appIcon",        label: "App Icon",             hint: "AppIcon (1024×1024)" },
+  { key: "coinIcon",       label: "Coin Icon",            hint: "CoinIcon" },
+  { key: "leaderboardIcon",label: "Leaderboard Icon",     hint: "LeaderboardIcon" },
+  { key: "treeIcon",       label: "Tree / Daraxt Icon",   hint: "TreeIcon" },
+  { key: "readingIcon",    label: "Reading Icon",         hint: "ReadingIcon" },
+  { key: "listeningIcon",  label: "Listening Icon",       hint: "ListeningIcon" },
+  { key: "profileIcon",    label: "Profil Icon",          hint: "ProfileIcon" },
+  { key: "settingsIcon",   label: "Sozlamalar Icon",      hint: "SettingsIcon" },
+  { key: "statsIcon",      label: "Statistika Icon",      hint: "StatsIcon" },
+];
+
+function loadIcons(){
+  setStatus("iconsStatus","⏳ Yuklanmoqda...","loading");
+  db.collection("appSettings").doc("icons").get().then(function(snap){
+    var data=snap.data()||{};
+    renderIconGrid(data);
+    setStatus("iconsStatus","","");
+  }).catch(function(e){
+    setStatus("iconsStatus","❌ Xato: "+e.message,"error");
+    renderIconGrid({});
+  });
+}
+
+function renderIconGrid(data){
+  var grid=document.getElementById("iconGrid");
+  if(!grid)return;
+  grid.innerHTML=ICONS_LIST.map(function(ic){
+    var url=data[ic.key]||"";
+    var hasIcon=url.length>0;
+    var encodedUrl=encodeURIComponent(url);
+    var html="<div style='background:var(--surface2);border-radius:14px;padding:16px;text-align:center'>";
+    html+="<div style='font-size:11px;font-weight:700;color:var(--muted);font-family:IBM Plex Mono,monospace;margin-bottom:8px;text-transform:uppercase'>"+ic.hint+"</div>";
+    html+="<div style='font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px'>"+ic.label+"</div>";
+    // Preview
+    html+="<div style='width:80px;height:80px;border-radius:18px;background:var(--bg);margin:0 auto 12px;display:flex;align-items:center;justify-content:center;border:2px solid "+(hasIcon?"var(--green)":"var(--border)")+"'>";
+    if(hasIcon){
+      html+="<img src='"+url+"' style='width:72px;height:72px;border-radius:16px;object-fit:contain'/>";
+    } else {
+      html+="<span style='font-size:32px;color:var(--muted)'>?</span>";
+    }
+    html+="</div>";
+    // Status
+    if(hasIcon){
+      html+="<div style='font-size:10px;color:var(--green);margin-bottom:10px;font-family:IBM Plex Mono,monospace'>✅ Yuklangan</div>";
+    } else {
+      html+="<div style='font-size:10px;color:var(--muted);margin-bottom:10px;font-family:IBM Plex Mono,monospace'>❌ Yuklanmagan</div>";
+    }
+    // Upload
+    html+="<label style='display:inline-block;padding:7px 16px;border-radius:8px;border:1.5px solid var(--accent);color:var(--accent);font-size:12px;font-weight:700;cursor:pointer;font-family:IBM Plex Mono,monospace'>";
+    html+="📤 Yuklash";
+    html+="<input type='file' accept='image/*' data-key='"+ic.key+"' data-oldurl='"+encodedUrl+"' onchange='uploadIcon(this)' style='display:none'/>";
+    html+="</label>";
+    // Delete
+    if(hasIcon){
+      html+="<button data-dkey='"+ic.key+"' data-durl='"+encodedUrl+"' onclick='handleDeleteIcon(this)' style='display:block;margin:8px auto 0;padding:5px 14px;border-radius:8px;border:1.5px solid var(--red);background:transparent;color:var(--red);font-size:11px;cursor:pointer'>🗑 O\'chirish</button>";
+    }
+    html+="<div id='status_"+ic.key+"' style='font-size:11px;min-height:16px;margin-top:6px;font-family:IBM Plex Mono,monospace'></div>";
+    html+="</div>";
+    return html;
+  }).join("");
+}
+
+
+async function uploadIcon(input){
+  var key=input.getAttribute("data-key");
+  var oldUrl=input.getAttribute("data-oldurl")||"";
+  var file=input.files[0];
+  if(!file)return;
+
+  var st=document.getElementById("status_"+key);
+  if(st){st.textContent="⏳ Yuklanmoqda...";st.style.color="var(--yellow)";}
+
+  try {
+    // 1. Eski faylni Storage dan o'chiramiz
+    if(oldUrl){
+      try {
+        var oldRef=firebase.storage().refFromURL(oldUrl);
+        await oldRef.delete();
+        console.log("Eski icon o'chirildi:", oldUrl);
+      } catch(e){ console.log("Eski o'chirishda xato (bo'lishi mumkin):", e.message); }
+    }
+
+    // 2. Yangi faylni yuklaymiz
+    var ext=file.name.split(".").pop()||"png";
+    var path="icons/"+key+"_"+Date.now()+"."+ext;
+    var snap=await storage.ref(path).put(file);
+    var newUrl=await snap.ref.getDownloadURL();
+
+    // 3. Firestore ga URL saqlаymiz
+    await db.collection("appSettings").doc("icons").set(
+      { [key]: newUrl },
+      { merge: true }
+    );
+
+    if(st){st.textContent="✅ Saqlandi!";st.style.color="var(--green)";}
+
+    // 4. Grid ni yangilaymiz
+    setTimeout(function(){ loadIcons(); }, 800);
+
+  } catch(e){
+    if(st){st.textContent="❌ "+e.message;st.style.color="var(--red)";}
+  }
+}
+
+function handleDeleteIcon(btn){
+  var key=btn.getAttribute("data-dkey");
+  var url=decodeURIComponent(btn.getAttribute("data-durl")||"");
+  deleteIcon(key, url);
+}
+
+async function deleteIcon(key, url){
+  if(!confirm("Bu iconni o\'chirasizmi?"))return;
+  var st=document.getElementById("status_"+key);
+  if(st){st.textContent="⏳ O\'chirilmoqda...";st.style.color="var(--yellow)";}
+
+  try {
+    // Storage dan o'chiramiz
+    if(url){
+      try {
+        await firebase.storage().refFromURL(url).delete();
+      } catch(e){ console.log("Storage o'chirishda xato:", e.message); }
+    }
+
+    // Firestore dan o'chiramiz
+    await db.collection("appSettings").doc("icons").update({
+      [key]: firebase.firestore.FieldValue.delete()
+    });
+
+    if(st){st.textContent="✅ O\'chirildi!";st.style.color="var(--green)";}
+    setTimeout(function(){ loadIcons(); }, 600);
+
+  } catch(e){
+    if(st){st.textContent="❌ "+e.message;st.style.color="var(--red)";}
+  }
+}
+
 
 // ══ DARAXTLAR ══
 function loadTrees(){
