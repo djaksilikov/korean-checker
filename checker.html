@@ -1406,7 +1406,7 @@ function loadFeedback(){
         "</div>"+
         "<div style='font-size:13px;color:var(--text);line-height:1.5'>"+f.message+"</div>"+
         "<div style='margin-top:8px;display:flex;gap:6px;justify-content:flex-end'>"+
-          "<button onclick=\'deleteFeedback(\"'+f._id+'\")' style=\'padding:3px 10px;border-radius:6px;border:1px solid var(--red);background:transparent;color:var(--red);font-size:10px;cursor:pointer\'>🗑 O\'chirish</button>"+
+          "<button data-fbid='"+f._id+"' onclick='handleDelFeedback(this)' style='padding:3px 10px;border-radius:6px;border:1px solid var(--red);background:transparent;color:var(--red);font-size:10px;cursor:pointer'>🗑 O'chirish</button>"+
         "</div>"+
       "</div>";
     }).join("");
@@ -1417,6 +1417,11 @@ function loadFeedback(){
   }).catch(function(e){
     setStatus("feedbackStatus","❌ Xato: "+e.message,"error");
   });
+}
+
+function handleDelFeedback(btn){
+  var id=btn.getAttribute("data-fbid");
+  if(id) deleteFeedback(id);
 }
 
 function deleteFeedback(id){
