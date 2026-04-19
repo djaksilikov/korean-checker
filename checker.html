@@ -124,6 +124,7 @@ tr:hover td{background:var(--surface2)}
     <button class="tab" onclick="switchTab('composer',this)">🛠 Savol tuzish</button>
     <button class="tab" onclick="switchTab('trees',this)">🌳 Daraxtlar</button>
     <button class="tab" onclick="switchTab('icons',this)">🖼 Iconlar</button>
+    <button class="tab" onclick="switchTab('feedback',this)">💬 Feedback</button>
   </div>
 </header>
 
@@ -246,6 +247,28 @@ tr:hover td{background:var(--surface2)}
     <div id="userList"></div>
   </div>
 </div>
+
+<!-- ══ FEEDBACK ══ -->
+<div id="tab-feedback" class="page">
+  <div id="feedbackStatus" class="status"></div>
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div class="card-title" style="margin-bottom:0">💬 Foydalanuvchi Xabarlari</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="feedbackFilter" onchange="loadFeedback()" style="padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:12px">
+          <option value="">Hammasi</option>
+          <option value="Taklif">💡 Takliflar</option>
+          <option value="Shikoyat">😟 Shikoyatlar</option>
+          <option value="Xato/Bug">🐛 Xatolar</option>
+        </select>
+        <button onclick="loadFeedback()" style="padding:6px 14px;border-radius:8px;border:1.5px solid var(--border);background:transparent;color:var(--muted);font-size:12px;cursor:pointer">🔄 Yangilash</button>
+      </div>
+    </div>
+    <div id="feedbackStats" style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap"></div>
+    <div id="feedbackList"></div>
+  </div>
+</div>
+
 
 <!-- ══ ICONLAR ══ -->
 <div id="tab-icons" class="page">
@@ -475,6 +498,7 @@ function switchTab(name,btn){
   if(name==='composer') initComposer();
   if(name==='trees') loadTrees();
   if(name==='icons') loadIcons();
+  if(name==='feedback') loadFeedback();
 }
 function setStatus(id,msg,type){
   var el=document.getElementById(id);
@@ -1313,6 +1337,88 @@ document.addEventListener("DOMContentLoaded",function(){
   var pw=document.getElementById("loginPassword");
   if(pw)pw.addEventListener("keydown",function(e){if(e.key==="Enter")doLogin();});
 });
+
+// ══ FEEDBACK ══
+function loadFeedback(){
+  setStatus("feedbackStatus","⏳ Yuklanmoqda...","loading");
+  var filter=(document.getElementById("feedbackFilter")||{}).value||"";
+
+  db.collection("feedback").orderBy("createdAt","desc").limit(200).get().then(function(snap){
+    var all=snap.docs.map(function(d){var data=d.data();data._id=d.id;return data;});
+
+    // Filter
+    var filtered=filter?all.filter(function(f){return f.type===filter;}):all;
+
+    // Statistika
+    var counts={"Taklif":0,"Shikoyat":0,"Xato/Bug":0};
+    all.forEach(function(f){if(counts[f.type]!==undefined)counts[f.type]++;});
+
+    var statsEl=document.getElementById("feedbackStats");
+    if(statsEl){
+      statsEl.innerHTML=[
+        {label:"Jami",count:all.length,color:"var(--accent)"},
+        {label:"💡 Takliflar",count:counts["Taklif"],color:"var(--yellow)"},
+        {label:"😟 Shikoyatlar",count:counts["Shikoyat"],color:"var(--red)"},
+        {label:"🐛 Xatolar",count:counts["Xato/Bug"],color:"var(--green)"},
+      ].map(function(s){
+        return "<div class='stat-card' style='flex:1;min-width:100px'>"+
+          "<div class='stat-num' style='color:"+s.color+"'>"+s.count+"</div>"+
+          "<div class='stat-lbl'>"+s.label+"</div>"+
+          "</div>";
+      }).join("");
+    }
+
+    // Ro'yxat
+    var listEl=document.getElementById("feedbackList");
+    if(!listEl)return;
+
+    if(!filtered.length){
+      listEl.innerHTML="<div style='color:var(--muted);font-size:13px;padding:8px'>Xabar yo\'q</div>";
+      setStatus("feedbackStatus","","");
+      return;
+    }
+
+    var typeColors={"Taklif":"var(--yellow)","Shikoyat":"var(--red)","Xato/Bug":"var(--green)"};
+    var typeIcons={"Taklif":"💡","Shikoyat":"😟","Xato/Bug":"🐛"};
+
+    listEl.innerHTML=filtered.map(function(f){
+      var date=f.createdAt?new Date(f.createdAt*1000):new Date();
+      var dateStr=date.toLocaleDateString()+" "+date.toLocaleTimeString();
+      var color=typeColors[f.type]||"var(--muted)";
+      var icon=typeIcons[f.type]||"💬";
+      return "<div style='background:var(--surface2);border-radius:12px;padding:14px;margin-bottom:10px;border-left:4px solid "+color+"'>"+
+        "<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:8px'>"+
+          "<div style='display:flex;align-items:center;gap:8px'>"+
+            "<span style='font-size:16px'>"+icon+"</span>"+
+            "<span style='font-size:12px;font-weight:700;color:"+color+";font-family:IBM Plex Mono,monospace'>"+f.type+"</span>"+
+            "<span style='font-size:11px;color:var(--muted)'>"+(f.country||"")+" "+(f.userName||"—")+(f.userTag||"")+"</span>"+
+          "</div>"+
+          "<span style='font-size:10px;color:var(--muted);font-family:IBM Plex Mono,monospace'>"+dateStr+"</span>"+
+        "</div>"+
+        "<div style='font-size:13px;color:var(--text);line-height:1.5'>"+f.message+"</div>"+
+        "<div style='margin-top:8px;display:flex;gap:6px;justify-content:flex-end'>"+
+          "<button onclick=\'deleteFeedback(\"'+f._id+'\")' style=\'padding:3px 10px;border-radius:6px;border:1px solid var(--red);background:transparent;color:var(--red);font-size:10px;cursor:pointer\'>🗑 O\'chirish</button>"+
+        "</div>"+
+      "</div>";
+    }).join("");
+
+    setStatus("feedbackStatus","✅ "+filtered.length+" ta xabar","success");
+    setTimeout(function(){setStatus("feedbackStatus","","");},2000);
+
+  }).catch(function(e){
+    setStatus("feedbackStatus","❌ Xato: "+e.message,"error");
+  });
+}
+
+function deleteFeedback(id){
+  if(!confirm("Bu xabarni o\'chirasizmi?"))return;
+  db.collection("feedback").doc(id).delete().then(function(){
+    loadFeedback();
+  }).catch(function(e){
+    alert("Xato: "+e.message);
+  });
+}
+
 
 // ══ ICONLAR ══
 var ICONS_LIST = [
