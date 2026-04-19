@@ -1343,8 +1343,14 @@ function loadFeedback(){
   setStatus("feedbackStatus","⏳ Yuklanmoqda...","loading");
   var filter=(document.getElementById("feedbackFilter")||{}).value||"";
 
-  db.collection("feedback").orderBy("createdAt","desc").limit(200).get().then(function(snap){
+  db.collection("feedback").limit(200).get().then(function(snap){
     var all=snap.docs.map(function(d){var data=d.data();data._id=d.id;return data;});
+    // createdAt bo'yicha yangilarini birinchi ko'rsatamiz
+    all.sort(function(a,b){
+      var ta=a.createdAt&&a.createdAt.toDate?a.createdAt.toDate().getTime():(a.createdAt||0);
+      var tb=b.createdAt&&b.createdAt.toDate?b.createdAt.toDate().getTime():(b.createdAt||0);
+      return tb-ta;
+    });
 
     // Filter
     var filtered=filter?all.filter(function(f){return f.type===filter;}):all;
@@ -1382,7 +1388,10 @@ function loadFeedback(){
     var typeIcons={"Taklif":"💡","Shikoyat":"😟","Xato/Bug":"🐛"};
 
     listEl.innerHTML=filtered.map(function(f){
-      var date=f.createdAt?new Date(f.createdAt*1000):new Date();
+      var date;
+      if(f.createdAt&&f.createdAt.toDate){date=f.createdAt.toDate();}
+      else if(f.createdAt){date=new Date(f.createdAt*1000);}
+      else{date=new Date();}
       var dateStr=date.toLocaleDateString()+" "+date.toLocaleTimeString();
       var color=typeColors[f.type]||"var(--muted)";
       var icon=typeIcons[f.type]||"💬";
