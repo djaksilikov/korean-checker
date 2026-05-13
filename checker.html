@@ -1155,28 +1155,29 @@ function loadStats(){
     var byRange = {};
     topik1.forEach(function(q){ byRange[q.topik1Range]=(byRange[q.topik1Range]||0)+1; });
 
-    if(topik1.length > 0) {
-      html += sectionTitle("📗 TOPIK 1 — UMUMIY");
-      html += '<div class="stat-grid">' +
-        sc(topik1.length,"Jami TOPIK 1","#27ae60") +
-        sc(t1L.length,"🎧 Listening","#1565C0") +
-        sc(t1R.length,"📖 Reading","#7c5cfc") +
-        '</div>';
+    // TOPIK 1 — har doim ko'rsatamiz
+    html += sectionTitle("📗 TOPIK 1 — UMUMIY");
+    html += '<div class="stat-grid">' +
+      sc(topik1.length,"Jami TOPIK 1","#27ae60") +
+      sc(t1L.length,"🎧 Listening","#1565C0") +
+      sc(t1R.length,"📖 Reading","#7c5cfc") +
+      '</div>';
 
-      html += sectionTitle("🎧 TOPIK 1 — LISTENING BO'LIMLARI");
-      html += '<div class="stat-grid">';
-      T1_RANGES_L.forEach(function(r){
-        html += '<div class="stat-card"><div class="stat-num" style="color:#1565C0">' + (byRange[r]||0) + '</div><div class="stat-lbl">[' + r + ']</div></div>';
-      });
-      html += '</div>';
+    html += sectionTitle("🎧 TOPIK 1 — LISTENING BO'LIMLARI (1~30)");
+    html += '<div class="stat-grid">';
+    T1_RANGES_L.forEach(function(r){
+      var n = byRange[r]||0;
+      html += '<div class="stat-card"><div class="stat-num" style="color:'+(n>0?'#1565C0':'var(--muted)')+'">' + n + '</div><div class="stat-lbl">[' + r + ']</div></div>';
+    });
+    html += '</div>';
 
-      html += sectionTitle("📖 TOPIK 1 — READING BO'LIMLARI");
-      html += '<div class="stat-grid">';
-      T1_RANGES_R.forEach(function(r){
-        html += '<div class="stat-card"><div class="stat-num" style="color:#7c5cfc">' + (byRange[r]||0) + '</div><div class="stat-lbl">[' + r + ']</div></div>';
-      });
-      html += '</div>';
-    }
+    html += sectionTitle("📖 TOPIK 1 — READING BO'LIMLARI (31~70)");
+    html += '<div class="stat-grid">';
+    T1_RANGES_R.forEach(function(r){
+      var n = byRange[r]||0;
+      html += '<div class="stat-card"><div class="stat-num" style="color:'+(n>0?'#7c5cfc':'var(--muted)')+'">' + n + '</div><div class="stat-lbl">[' + r + ']</div></div>';
+    });
+    html += '</div>';
 
     document.getElementById('statsResult').innerHTML=html;
     setStatus('statsStatus','✅ Tayyor!','success');
