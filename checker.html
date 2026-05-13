@@ -2026,23 +2026,7 @@ function onCmpSectionChange(){
 }
 
 
-function onCmpSectionChange(){
-  var sec = document.getElementById("cmpSection").value;
-  var diffDiv   = document.getElementById("cmpDiffDiv");
-  var topik1Div = document.getElementById("cmpTopik1Div");
-  var ballDiv   = document.getElementById("cmpBallDiv");
-  var isTopik1  = sec === "TOPIK 1";
-  if(diffDiv)   diffDiv.style.display   = isTopik1 ? "none" : "block";
-  if(topik1Div) topik1Div.style.display = isTopik1 ? "block" : "none";
-  if(ballDiv)   ballDiv.style.display   = isTopik1 ? "block" : "none";
-  // testType auto
-  if(isTopik1){
-    var range = document.getElementById("cmpTopik1Range").value;
-    var isL = parseInt(range.split("~")[0]) <= 30;
-    var sel = document.getElementById("cmpType");
-    if(sel) sel.value = isL ? "Listening" : "Reading";
-  }
-}
+
 
 </body>
 </html>
