@@ -636,7 +636,7 @@ function onSearch(){
     var foundBadge=foundIn?'<span style="font-size:10px;color:#f1c40f;background:rgba(241,196,15,0.1);border:1px solid rgba(241,196,15,0.3);padding:1px 6px;border-radius:10px;margin-left:4px">'+foundIn+'</span>':'';
 
     return '<div class="'+cls+'" onclick="selectQ(\''+item._id+'\',event)">'+
-      '<div class="q-meta">'+secBadge(item.section)+typeBadge(item.testType||'Reading')+diffBadge(item.difficulty||'Easy')+
+      '<div class="q-meta">'+secBadge(item.section)+typeBadge(item.testType||'Reading')+(item.topik1Range?'<span class="badge" style="background:#1565C0;color:#fff">['+item.topik1Range+']</span>':diffBadge(item.difficulty||'Easy'))+
       (ig?'<span class="badge bb">🔗 '+ord+'/2</span>':'')+foundBadge+
       '</div><div class="q-purpose">'+(item.purpose||item.questionText||'—')+'</div>'+
       '<div class="q-sub">'+item._id+'</div></div>';
@@ -1051,7 +1051,7 @@ function loadLast(){
       return '<div class="'+cls+'" id="lq_'+item._id+'">'+
         '<div class="q-meta" style="justify-content:space-between;align-items:center">'+
         '<div style="display:flex;gap:6px;flex-wrap:wrap">'+
-        secBadge(item.section)+typeBadge(item.testType||'Reading')+diffBadge(item.difficulty||'Easy')+
+        secBadge(item.section)+typeBadge(item.testType||'Reading')+(item.topik1Range?'<span class="badge" style="background:#1565C0;color:#fff">['+item.topik1Range+']</span>':diffBadge(item.difficulty||'Easy'))+
         (ig?'<span class="badge bb">🔗 '+ord+'/2</span>':'')+
         '</div>'+
         '<button class="last-edit-btn" data-id="'+item._id+'" style="padding:3px 10px;border-radius:6px;border:1.5px solid var(--accent);background:transparent;color:var(--accent);font-size:11px;cursor:pointer;font-family:Sora,sans-serif;font-weight:700">✏️ Tahrir</button>'+
