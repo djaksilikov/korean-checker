@@ -402,6 +402,14 @@ tr:hover td{background:var(--surface2)}
       </div>
 
       <!-- Bo'lim va tur -->
+      <div style="margin-bottom:10px">
+        <label style="font-size:11px;color:var(--muted);font-family:IBM Plex Mono,monospace">SECTION</label>
+        <select id="cmpSection" style="width:100%;margin-top:4px" onchange="onCmpSectionChange()">
+          <option value="Interactive EPS">Interactive EPS</option>
+          <option value="TOPIK 1">TOPIK 1</option>
+          <option value="TOPIK 2">TOPIK 2</option>
+        </select>
+      </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
         <div>
           <label style="font-size:11px;color:var(--muted);font-family:IBM Plex Mono,monospace">TEST TURI</label>
@@ -410,7 +418,7 @@ tr:hover td{background:var(--surface2)}
             <option value="Listening">🎧 Listening</option>
           </select>
         </div>
-        <div>
+        <div id="cmpDiffDiv">
           <label style="font-size:11px;color:var(--muted);font-family:IBM Plex Mono,monospace">QIYINLIK</label>
           <select id="cmpDiff" style="width:100%;margin-top:4px">
             <option>Very Easy</option><option>Easy</option>
@@ -419,6 +427,36 @@ tr:hover td{background:var(--surface2)}
             <option>Hard</option><option>Hard Hard</option>
           </select>
         </div>
+        <div id="cmpTopik1Div" style="display:none">
+          <label style="font-size:11px;color:var(--muted);font-family:IBM Plex Mono,monospace">BO'LIM</label>
+          <select id="cmpTopik1Range" style="width:100%;margin-top:4px">
+            <optgroup label="🎧 Listening">
+              <option value="1~4">[1~4]</option><option value="5~6">[5~6]</option>
+              <option value="7~10">[7~10]</option><option value="11~14">[11~14]</option>
+              <option value="15~16">[15~16]</option><option value="17~21">[17~21]</option>
+              <option value="22~24A">[22~24 Ayol]</option><option value="22~24B">[22~24 Erkak]</option>
+              <option value="25~26">[25~26]</option><option value="27~28">[27~28]</option>
+              <option value="29~30">[29~30]</option>
+            </optgroup>
+            <optgroup label="📖 Reading">
+              <option value="31~33">[31~33]</option><option value="34~39">[34~39]</option>
+              <option value="40~42">[40~42]</option><option value="43~45">[43~45]</option>
+              <option value="46~48">[46~48]</option><option value="49~50">[49~50]</option>
+              <option value="51~52">[51~52]</option><option value="53~54">[53~54]</option>
+              <option value="55~56">[55~56]</option><option value="57~58">[57~58]</option>
+              <option value="59~60">[59~60]</option><option value="61~62">[61~62]</option>
+              <option value="63~64">[63~64]</option><option value="65~66">[65~66]</option>
+              <option value="67~68">[67~68]</option><option value="69~70">[69~70]</option>
+            </optgroup>
+          </select>
+        </div>
+      </div>
+
+      <!-- Ball (TOPIK 1) -->
+      <div id="cmpBallDiv" style="display:none;margin-bottom:10px">
+        <label style="font-size:11px;color:var(--muted);font-family:IBM Plex Mono,monospace">BALL ⭐</label>
+        <input type="number" id="cmpBall" value="2" min="1" max="10" step="0.5"
+          style="width:80px;padding:6px 10px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-weight:700;margin-top:4px">
       </div>
 
       <!-- Maqsad -->
@@ -545,6 +583,8 @@ function onSearch(){
   var sec=document.getElementById('filterSection').value;
   var type=document.getElementById('filterType').value;
   var diff=document.getElementById('filterDiff').value;
+  // TOPIK 1 bo'limlari [1~4] formatida
+  var isTopik1Range = diff.includes('~') && !diff.includes('Very') && !diff.includes('Easy') && !diff.includes('Medium') && !diff.includes('Hard');
   var grp=document.getElementById('filterGroup').value;
   var filtered=allQuestions.filter(function(item){
     if(sec && item.section!==sec) return false;
@@ -1103,6 +1143,40 @@ function loadStats(){
     html+='<div class="stat-grid">';
     diffs.forEach(function(k){html+=sc(byD[k]||0,k,dc[k])});
     html+='</div>';
+
+    // ── TOPIK 1 statistika ──
+    var topik1 = all.filter(function(q){ return q.section === "TOPIK 1"; });
+    var t1L = topik1.filter(function(q){ return q.testType === "Listening"; });
+    var t1R = topik1.filter(function(q){ return q.testType === "Reading"; });
+
+    // Bo'lim bo'yicha TOPIK 1
+    var T1_RANGES_L = ["1~4","5~6","7~10","11~14","15~16","17~21","22~24A","22~24B","25~26","27~28","29~30"];
+    var T1_RANGES_R = ["31~33","34~39","40~42","43~45","46~48","49~50","51~52","53~54","55~56","57~58","59~60","61~62","63~64","65~66","67~68","69~70"];
+    var byRange = {};
+    topik1.forEach(function(q){ byRange[q.topik1Range]=(byRange[q.topik1Range]||0)+1; });
+
+    if(topik1.length > 0) {
+      html += sectionTitle("📗 TOPIK 1 — UMUMIY");
+      html += '<div class="stat-grid">' +
+        sc(topik1.length,"Jami TOPIK 1","#27ae60") +
+        sc(t1L.length,"🎧 Listening","#1565C0") +
+        sc(t1R.length,"📖 Reading","#7c5cfc") +
+        '</div>';
+
+      html += sectionTitle("🎧 TOPIK 1 — LISTENING BO'LIMLARI");
+      html += '<div class="stat-grid">';
+      T1_RANGES_L.forEach(function(r){
+        html += '<div class="stat-card"><div class="stat-num" style="color:#1565C0">' + (byRange[r]||0) + '</div><div class="stat-lbl">[' + r + ']</div></div>';
+      });
+      html += '</div>';
+
+      html += sectionTitle("📖 TOPIK 1 — READING BO'LIMLARI");
+      html += '<div class="stat-grid">';
+      T1_RANGES_R.forEach(function(r){
+        html += '<div class="stat-card"><div class="stat-num" style="color:#7c5cfc">' + (byRange[r]||0) + '</div><div class="stat-lbl">[' + r + ']</div></div>';
+      });
+      html += '</div>';
+    }
 
     document.getElementById('statsResult').innerHTML=html;
     setStatus('statsStatus','✅ Tayyor!','success');
@@ -1896,9 +1970,11 @@ async function cmpSave(){
   }
   var pTplId=(document.getElementById("cmpPurposeTplId")||{}).value||"";
   var doc={
-    section:"Interactive EPS",
+    section:document.getElementById("cmpSection")?.value||"Interactive EPS",
     testType:document.getElementById("cmpType").value,
-    difficulty:document.getElementById("cmpDiff").value,
+    difficulty:document.getElementById("cmpSection")?.value==="TOPIK 1"?"":document.getElementById("cmpDiff").value,
+    topik1Range:document.getElementById("cmpSection")?.value==="TOPIK 1"?document.getElementById("cmpTopik1Range")?.value||"":null,
+    ball:document.getElementById("cmpSection")?.value==="TOPIK 1"?parseFloat(document.getElementById("cmpBall")?.value||2):null,
     correctIndex:parseInt(document.getElementById("cmpCorrect").value),
     options:opts,
     createdAt:firebase.firestore.FieldValue.serverTimestamp()
@@ -1932,5 +2008,43 @@ window.onload=function(){
 </script>
 </div>
 </div>
+
+function onCmpSectionChange(){
+  var sec = document.getElementById("cmpSection").value;
+  var diffDiv   = document.getElementById("cmpDiffDiv");
+  var topik1Div = document.getElementById("cmpTopik1Div");
+  var ballDiv   = document.getElementById("cmpBallDiv");
+  var isTopik1  = sec === "TOPIK 1";
+  if(diffDiv)   diffDiv.style.display   = isTopik1 ? "none" : "block";
+  if(topik1Div) topik1Div.style.display = isTopik1 ? "block" : "none";
+  if(ballDiv)   ballDiv.style.display   = isTopik1 ? "block" : "none";
+  // testType auto
+  if(isTopik1){
+    var range = document.getElementById("cmpTopik1Range").value;
+    var isL = parseInt(range.split("~")[0]) <= 30;
+    var sel = document.getElementById("cmpType");
+    if(sel) sel.value = isL ? "Listening" : "Reading";
+  }
+}
+
+
+function onCmpSectionChange(){
+  var sec = document.getElementById("cmpSection").value;
+  var diffDiv   = document.getElementById("cmpDiffDiv");
+  var topik1Div = document.getElementById("cmpTopik1Div");
+  var ballDiv   = document.getElementById("cmpBallDiv");
+  var isTopik1  = sec === "TOPIK 1";
+  if(diffDiv)   diffDiv.style.display   = isTopik1 ? "none" : "block";
+  if(topik1Div) topik1Div.style.display = isTopik1 ? "block" : "none";
+  if(ballDiv)   ballDiv.style.display   = isTopik1 ? "block" : "none";
+  // testType auto
+  if(isTopik1){
+    var range = document.getElementById("cmpTopik1Range").value;
+    var isL = parseInt(range.split("~")[0]) <= 30;
+    var sel = document.getElementById("cmpType");
+    if(sel) sel.value = isL ? "Listening" : "Reading";
+  }
+}
+
 </body>
 </html>
