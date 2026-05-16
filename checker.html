@@ -1090,8 +1090,15 @@ function loadStats(){
     var byDR={},byDL={};
     var diffs=['Very Easy','Easy','Medium','Above Medium','Above Medium Hard','Hard','Hard Hard'];
 
+    // Guruh savollar: groupOrder===2 bo'lsa alohida savol emas
+    // Lekin har biri Firebase da alohida hujjat
+    var seenGroups = {};
     all.forEach(function(item){
-      byS[item.section]=(byS[item.section]||0)+1;
+      // Haqiqiy savol soni: groupOrder===2 bo'lsa o'tkazib yuboramiz
+      // (groupOrder===1 bilan birga hisoblanadi)
+      var isSecondInGroup = item.groupId && item.groupOrder === 2;
+
+      byS[item.section]=(byS[item.section]||0)+1; // Hujjat soni
       byT[item.testType]=(byT[item.testType]||0)+1;
       byD[item.difficulty]=(byD[item.difficulty]||0)+1;
       if(item.groupId&&item.groupOrder===1) gids.add(item.groupId);
@@ -1102,6 +1109,19 @@ function loadStats(){
       }
     });
 
+    // Haqiqiy savol soni (guruh savollar 1 ta hisoblanadi)
+    var realTotal = all.filter(function(q){
+      return !q.groupId || q.groupOrder === 1;
+    }).length;
+
+    // TOPIK 1 uchun haqiqiy savol soni
+    var t1Real = all.filter(function(q){
+      return q.section === 'TOPIK 1' && (!q.groupId || q.groupOrder === 1);
+    }).length;
+    var t1Groups = all.filter(function(q){
+      return q.section === 'TOPIK 1' && q.groupId && q.groupOrder === 1;
+    }).length;
+
     function sc(n,l,c){return '<div class="stat-card"><div class="stat-num" style="color:'+c+'">'+n+'</div><div class="stat-lbl">'+l+'</div></div>'}
     function sectionTitle(t){return '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin:16px 0 6px;font-family:IBM Plex Mono,monospace">'+t+'</div>'}
     var dc={'Very Easy':'#27ae60','Easy':'#2ecc71','Medium':'var(--yellow)','Above Medium':'#e67e22','Above Medium Hard':'#8e44ad','Hard':'var(--red)','Hard Hard':'#2c3e50'};
@@ -1109,7 +1129,8 @@ function loadStats(){
     // Umumiy
     var html=sectionTitle('UMUMIY');
     html+='<div class="stat-grid">'+
-      sc(all.length,'Jami savol','var(--accent)')+
+      sc(all.length,'Hujjatlar (DB)','#6b7280')+
+      sc(realTotal,'Haqiqiy savollar','var(--accent)')+
       sc(byS['Interactive EPS']||0,'Interactive EPS','var(--accent2)')+
       sc(byT['Reading']||0,'📖 Reading','var(--accent2)')+
       sc(byT['Listening']||0,'🎧 Listening','var(--accent)')+
@@ -1151,13 +1172,27 @@ function loadStats(){
     var T1L = ['1~4','5~6','7~10','11~14','15~16','17~21','22~24A','22~24B','25~26','27~28','29~30'];
     var T1R = ['31~33','34~39','40~42','43~45','46~48','49~50','51~52','53~54','55~56','57~58','59~60','61~62','63~64','65~66','67~68','69~70'];
     var byRange = {};
-    topik1.forEach(function(q){ if(q.topik1Range) byRange[q.topik1Range]=(byRange[q.topik1Range]||0)+1; });
+    // Bo'lim statistikasi: faqat groupOrder===1 yoki guruhsiz savollar
+    topik1.forEach(function(q){
+      if(q.topik1Range && (!q.groupId || q.groupOrder === 1)){
+        byRange[q.topik1Range]=(byRange[q.topik1Range]||0)+1;
+      }
+    });
+
+    // TOPIK 1 haqiqiy savollar (guruh savollar birga hisoblanadi)
+    var t1Docs = topik1.length; // Firebase hujjatlar
+    var t1RealCount = topik1.filter(function(q){ return !q.groupId || q.groupOrder === 1; }).length;
+    var t1GroupCount = topik1.filter(function(q){ return q.groupId && q.groupOrder === 1; }).length;
+    var t1LReal = t1L.filter(function(q){ return !q.groupId || q.groupOrder === 1; }).length;
+    var t1RReal = t1R.filter(function(q){ return !q.groupId || q.groupOrder === 1; }).length;
 
     html = html + sectionTitle('📗 TOPIK 1');
     html = html + '<div class="stat-grid">';
-    html = html + sc(topik1.length,'Jami','#27ae60');
-    html = html + sc(t1L.length,'Listening','#1565C0');
-    html = html + sc(t1R.length,'Reading','#7c5cfc');
+    html = html + sc(t1Docs,'Hujjatlar (DB)','#6b7280');
+    html = html + sc(t1RealCount,'Haqiqiy savollar','#27ae60');
+    html = html + sc(t1GroupCount,'Guruh savollar','#e67e22');
+    html = html + sc(t1LReal,'🎧 Listening','#1565C0');
+    html = html + sc(t1RReal,'📖 Reading','#7c5cfc');
     html = html + '</div>';
 
     html = html + sectionTitle('🎧 Listening (1~30)');
